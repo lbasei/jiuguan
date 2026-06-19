@@ -1,0 +1,228 @@
+/* 像素游戏风主题。拉丁/数字用 Press Start 2P，中文用 DotGothic16 点阵。 */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&display=swap');
+
+:root {
+  --cream: #F1E4C3;
+  --cream-2: #E3CE9E;
+  --wood: #7A4E29;
+  --wood-dark: #3E2A18;
+  --amber: #E0902E;
+  --amber-deep: #B5662A;
+  --ink: #3E2A18;
+  --muted: #8A6F47;
+  --leaf: #6F8A5B;
+  --line: #3E2A18;
+  --card: #FBF1D6;
+  --red: #C24A3D;
+  --pixel-shadow: 4px 4px 0 #3E2A18;
+  --pixel-shadow-sm: 3px 3px 0 #3E2A18;
+  --display: 'Press Start 2P', monospace;
+  --body: 'DotGothic16', 'PingFang SC', monospace;
+}
+
+* { box-sizing: border-box; }
+img, svg { image-rendering: pixelated; }
+
+body {
+  margin: 0;
+  font-family: var(--body);
+  color: var(--ink);
+  background-color: var(--cream);
+  /* 木纹 + 暖光 + 像素点阵底纹 */
+  background-image:
+    radial-gradient(700px 360px at 50% -8%, rgba(255,240,200,.7), transparent 70%),
+    repeating-linear-gradient(0deg, rgba(62,42,24,.05) 0 2px, transparent 2px 4px),
+    repeating-linear-gradient(90deg, rgba(62,42,24,.05) 0 2px, transparent 2px 4px);
+  -webkit-font-smoothing: none;
+}
+
+.app { max-width: 720px; margin: 0 auto; padding: 22px 16px 90px; }
+
+/* —— 顶栏 —— */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--wood-dark); color: var(--cream);
+  border: 3px solid var(--ink); box-shadow: var(--pixel-shadow);
+  padding: 12px 14px; margin-bottom: 18px;
+}
+.brand { font-family: var(--display); font-size: 14px; letter-spacing: 1px; line-height: 1.5; }
+.brand small { font-family: var(--body); font-size: 12px; color: var(--cream-2); margin-left: 8px; }
+.llm-badge {
+  font-family: var(--body); font-size: 11px; padding: 4px 8px;
+  border: 2px solid var(--cream-2); color: var(--cream-2); background: transparent;
+}
+.llm-badge.on { color: #b6e08a; border-color: #b6e08a; }
+
+/* —— 步骤指示 —— */
+.steps { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 20px; }
+.step-dot {
+  font-family: var(--body); font-size: 12px; padding: 5px 9px;
+  background: var(--cream-2); color: var(--wood-dark); border: 2px solid var(--ink);
+}
+.step-dot.active { background: var(--amber); color: #fff; box-shadow: var(--pixel-shadow-sm); }
+.step-dot.done { background: var(--card); color: var(--muted); }
+
+h2.title { font-size: 19px; margin: 4px 0 6px; color: var(--wood-dark); line-height: 1.5; }
+.subtitle { color: var(--muted); font-size: 13px; margin: 0 0 18px; line-height: 1.6; }
+
+.card {
+  background: var(--card);
+  border: 3px solid var(--ink);
+  box-shadow: var(--pixel-shadow);
+  padding: 16px; margin-bottom: 16px;
+}
+
+.grid { display: grid; gap: 12px; }
+.grid.cols2 { grid-template-columns: 1fr 1fr; }
+
+/* —— 按钮 —— */
+button {
+  font-family: var(--body);
+  cursor: pointer;
+  border: 3px solid var(--ink);
+  padding: 10px 16px; font-size: 14px;
+  background: var(--cream-2); color: var(--wood-dark);
+  box-shadow: var(--pixel-shadow-sm);
+  transition: transform .05s, box-shadow .05s;
+}
+button:hover { filter: brightness(1.04); }
+button:active { transform: translate(3px, 3px); box-shadow: none; }
+button:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; transform: none; }
+.btn-primary { background: var(--amber); color: #fff; }
+.btn-ghost { background: var(--card); }
+.btn-row { display: flex; gap: 10px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+.spacer { flex: 1; }
+
+/* —— 输入 —— */
+textarea, input, select {
+  font-family: var(--body);
+  width: 100%;
+  border: 3px solid var(--ink);
+  padding: 10px; background: #fffaf0; color: var(--ink); font-size: 14px;
+}
+textarea { min-height: 120px; resize: vertical; line-height: 1.7; }
+label.field { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 6px; }
+
+/* —— 小精灵卡 —— */
+.bartender-card {
+  display: flex; gap: 12px; align-items: center; cursor: pointer;
+  border: 3px solid var(--ink); background: var(--card);
+  box-shadow: var(--pixel-shadow-sm); padding: 12px;
+  transition: transform .05s, box-shadow .05s;
+}
+.bartender-card:hover { transform: translate(-1px,-1px); box-shadow: 5px 5px 0 var(--ink); }
+.bartender-card.sel { background: #fff3d8; border-color: var(--amber-deep); outline: 3px solid var(--amber); outline-offset: -7px; }
+.bartender-card .bname { font-weight: 700; color: var(--wood-dark); font-size: 15px; }
+.bartender-card .bstyle { font-size: 11px; color: var(--amber-deep); margin: 3px 0; }
+.bartender-card .bblurb { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.sprite-wrap { background: #fff7e6; border: 2px solid var(--ink); padding: 4px; flex-shrink: 0; }
+
+/* —— 原料瓶（揭晓页） —— */
+.bottle { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
+.bottle .vial {
+  width: 28px; height: 40px; border: 3px solid var(--ink);
+  position: relative; overflow: hidden; background: #fffaf0; flex-shrink: 0;
+}
+.bottle .vial .fill { position: absolute; bottom: 0; left: 0; right: 0; }
+.bottle .meta { flex: 1; }
+.bottle .iname { font-weight: 700; font-size: 14px; }
+.bottle .isrc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.tag {
+  display: inline-block; font-family: var(--display); font-size: 9px; padding: 3px 6px;
+  background: var(--wood-dark); color: var(--cream); margin-left: 8px; vertical-align: middle;
+}
+
+/* —— 配方条 —— */
+.recipe-bar { display: flex; height: 26px; border: 3px solid var(--ink); overflow: hidden; }
+.recipe-bar .seg { height: 100%; }
+.recipe-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 12px; }
+.recipe-legend .item { font-size: 12px; display: flex; align-items: center; gap: 5px; }
+.recipe-legend .swatch { width: 12px; height: 12px; border: 2px solid var(--ink); display: inline-block; }
+
+/* —— 提醒 / 点评 —— */
+.warn { background: #f6dcae; border: 3px solid var(--ink); color: var(--amber-deep); padding: 10px 12px; font-size: 13px; margin-top: 10px; line-height: 1.6; }
+.comment { background: #e2ecc9; border: 3px solid var(--ink); color: #4d5b39; padding: 12px; font-size: 14px; line-height: 1.7; }
+
+/* —— EvoMap 经验纸条 —— */
+.evo { border: 3px dashed var(--amber-deep); background: #fff3d8; padding: 12px; margin-bottom: 12px; }
+.evo .ename { font-weight: 700; color: var(--amber-deep); font-size: 14px; }
+.evo .emeta { font-size: 12px; color: var(--muted); margin: 6px 0 10px; line-height: 1.6; }
+.evo.absorbed { opacity: .6; border-style: solid; }
+
+/* —— 执行 / 排序行 —— */
+.exec-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 2px dashed var(--cream-2); flex-wrap: wrap; }
+.exec-row:last-child { border-bottom: none; }
+.exec-row .idx {
+  width: 26px; height: 26px; background: var(--amber); color: #fff;
+  border: 2px solid var(--ink); font-family: var(--display); font-size: 10px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.exec-row .et { flex: 1; min-width: 120px; }
+.exec-row .ettitle { font-size: 14px; }
+.exec-row.done .ettitle { text-decoration: line-through; color: var(--muted); }
+.exec-row select, .exec-row input { width: auto; padding: 6px 8px; font-size: 12px; }
+.exec-row input.time { width: 60px; }
+.move-btns { display: flex; flex-direction: column; gap: 3px; }
+.move-btns button { padding: 2px 8px; font-size: 12px; box-shadow: none; border-width: 2px; }
+.move-btns button:active { transform: translate(1px,1px); }
+
+/* —— 今日特调卡 —— */
+.special-card {
+  background: linear-gradient(160deg, #fff3d8, #e3ce9e);
+  border: 4px solid var(--ink); box-shadow: var(--pixel-shadow);
+  padding: 22px; text-align: center;
+}
+.special-card .glass-sprite { display: flex; justify-content: center; margin-bottom: 6px; }
+.special-card .dname { font-size: 24px; font-weight: 700; color: var(--wood-dark); margin: 8px 0; letter-spacing: 1px; }
+.special-card .bline { color: var(--amber-deep); font-size: 13px; margin-bottom: 14px; }
+.metrics { display: flex; justify-content: center; gap: 28px; margin: 14px 0; }
+.metrics .m .num { font-family: var(--display); font-size: 18px; color: var(--wood-dark); }
+.metrics .m .lab { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+/* —— 揭晓动效 —— */
+.reveal-in { animation: reveal .5s ease-out both; }
+@keyframes reveal { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
+.reveal-banner {
+  font-family: var(--display); font-size: 12px; text-align: center;
+  color: var(--amber-deep); margin: 4px 0 14px; line-height: 1.8;
+}
+
+.muted-note { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+.center { text-align: center; }
+
+/* —— 点兵轮播 —— */
+.picker { display: flex; align-items: center; justify-content: center; gap: 10px; touch-action: pan-y; user-select: none; }
+.picker-arrow { font-size: 20px; padding: 14px 12px; background: var(--card); }
+.hero {
+  flex: 1; max-width: 420px; text-align: center;
+  background: var(--card); border: 4px solid var(--ink); box-shadow: var(--pixel-shadow);
+  padding: 20px 16px;
+}
+.hero-sprite { display: inline-block; border: 3px solid var(--ink); padding: 12px; margin-bottom: 12px; }
+.hero-name { font-size: 20px; font-weight: 700; color: var(--wood-dark); }
+.hero-style { font-family: var(--display); font-size: 10px; color: var(--amber-deep); margin: 8px 0; }
+.hero-fit { font-size: 12px; color: var(--muted); }
+.hero-blurb { font-size: 13px; color: var(--ink); margin-top: 10px; line-height: 1.6; }
+.dots { display: flex; gap: 8px; justify-content: center; margin: 16px 0 4px; }
+.dot { width: 12px; height: 12px; border: 2px solid var(--ink); background: var(--cream-2); cursor: pointer; }
+.dot.on { box-shadow: var(--pixel-shadow-sm); }
+
+/* —— 精灵动画 —— */
+.sprite-bob { animation: bob 1.6s steps(2) infinite; }
+@keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.sprite-shake { animation: shake .35s steps(2) infinite; transform-origin: 50% 80%; }
+@keyframes shake { 0% { transform: rotate(-7deg) translateY(0); } 50% { transform: rotate(7deg) translateY(-3px); } 100% { transform: rotate(-7deg); } }
+
+/* —— 执行 · 代入感 —— */
+.brew-stage {
+  text-align: center; background: var(--wood-dark); color: var(--cream);
+  border: 4px solid var(--ink); box-shadow: var(--pixel-shadow); padding: 22px; margin-bottom: 16px;
+}
+.brew-stage .now { font-size: 13px; color: var(--cream-2); }
+.brew-stage .task { font-size: 17px; font-weight: 700; margin: 6px 0 14px; }
+.brew-sprite { display: inline-block; background: #2a1c10; border: 3px solid var(--ink); padding: 14px; }
+.brew-say { font-family: var(--display); font-size: 10px; color: #ffd98a; margin-top: 12px; line-height: 1.8; }
+.brew-timer { font-family: var(--display); font-size: 22px; margin: 12px 0 2px; }
+.brew-actions { display: flex; gap: 10px; justify-content: center; margin-top: 14px; }
+.pet-badge { font-size: 11px; padding: 4px 8px; border: 2px solid var(--cream-2); color: var(--cream-2); }
+.pet-badge.on { color: #b6e08a; border-color: #b6e08a; }

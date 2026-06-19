@@ -1,0 +1,17 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// dev 代理：浏览器打同源 /deepseek，Vite 转发到 DeepSeek，绕开 CORS。
+// 仅 dev 生效；生产部署需另配后端代理（纯前端调 LLM 会暴露 key，仅适合 demo）。
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    proxy: {
+      '/deepseek': {
+        target: 'https://api.deepseek.com',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/deepseek/, ''),
+      },
+    },
+  },
+})

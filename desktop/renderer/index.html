@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&display=swap');
+      html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; -webkit-user-select: none; }
+      #stage {
+        height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+        padding-bottom: 6px; -webkit-app-region: drag; cursor: grab;
+      }
+      #bubble {
+        font-family: 'DotGothic16', monospace; font-size: 11px; color: #3E2A18;
+        background: #FBF1D6; border: 3px solid #3E2A18; box-shadow: 3px 3px 0 #3E2A18;
+        padding: 5px 9px; margin-bottom: 8px; max-width: 170px; text-align: center; min-height: 16px;
+        opacity: 0; transition: opacity .2s;
+      }
+      #bubble.show { opacity: 1; }
+      #bubble .act { font-family: 'Press Start 2P'; font-size: 8px; color: #B5662A; display: block; margin-top: 4px; }
+      #sprite { image-rendering: pixelated; }
+      /* 木牌：始终可见，方便定位桌宠 */
+      #plate {
+        font-family: 'DotGothic16', monospace; font-size: 12px; color: #FBF1D6;
+        background: #3E2A18; border: 3px solid #1f140b; box-shadow: 3px 3px 0 #1f140b;
+        padding: 4px 12px; margin-top: 6px; white-space: nowrap;
+      }
+      .bob { animation: bob 1.6s steps(2) infinite; }
+      @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+      .shake { animation: shake .35s steps(2) infinite; transform-origin: 50% 80%; }
+      @keyframes shake { 0% { transform: rotate(-8deg); } 50% { transform: rotate(8deg) translateY(-3px); } 100% { transform: rotate(-8deg); } }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <div id="bubble"></div>
+      <div id="sprite" class="bob"></div>
+      <div id="plate">小精灵待命中</div>
+    </div>
+    <script src="sprites.js"></script>
+    <script src="pet.js"></script>
+  </body>
+</html>
