@@ -12,17 +12,69 @@
       #bubble {
         font-family: 'DotGothic16', monospace; font-size: 11px; color: #3E2A18;
         background: #FBF1D6; border: 3px solid #3E2A18; box-shadow: 3px 3px 0 #3E2A18;
-        padding: 5px 9px; margin-bottom: 8px; max-width: 170px; text-align: center; min-height: 16px;
+        padding: 5px 9px; margin-bottom: 5px; max-width: 170px; text-align: center; min-height: 16px;
         opacity: 0; transition: opacity .2s;
       }
       #bubble.show { opacity: 1; }
       #bubble .act { font-family: 'Press Start 2P'; font-size: 8px; color: #B5662A; display: block; margin-top: 4px; }
-      #sprite { image-rendering: pixelated; }
+      #counter {
+        font-family: 'DotGothic16', monospace; font-size: 10px; color: #3E2A18;
+        background: #FBF1D6; border: 3px solid #3E2A18; box-shadow: 3px 3px 0 #3E2A18;
+        padding: 4px 6px; margin-bottom: 5px; max-width: 190px; max-height: 70px; overflow-y: auto;
+        text-align: left; opacity: 0; visibility: hidden; transition: opacity .2s;
+      }
+      #counter.show { opacity: 1; visibility: visible; }
+      #counter .ingredient {
+        padding: 2px 0; border-bottom: 1px dashed #3E2A18; cursor: pointer;
+        -webkit-app-region: no-drag; position: relative;
+      }
+      #counter .ingredient:last-child { border-bottom: none; }
+      #counter .ing-title { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #counter .ing-meta { font-size: 9px; color: #B5662A; }
+      #counter .ingredient.pouring {
+        animation: pourIntoCup 0.55s ease-in forwards;
+        pointer-events: none;
+      }
+      @keyframes pourIntoCup {
+        0% { transform: translate(0, 0) scale(1); opacity: 1; }
+        100% { transform: translate(52px, 78px) scale(0.2); opacity: 0; }
+      }
+      #workspace {
+        display: flex; flex-direction: row; align-items: flex-end; justify-content: center;
+        gap: 6px; margin-bottom: 2px;
+      }
+      #sprite { image-rendering: pixelated; -webkit-app-region: no-drag; cursor: pointer; }
+      #cup {
+        width: 34px; height: 46px; margin-bottom: 2px;
+        border: 3px solid #3E2A18; border-top: none; border-radius: 0 0 9px 9px;
+        background: rgba(251, 241, 214, 0.3); position: relative; overflow: hidden;
+        opacity: 0; visibility: hidden; transition: opacity .2s;
+        -webkit-app-region: no-drag; cursor: pointer;
+      }
+      #cup.show { opacity: 1; visibility: visible; }
+      #cup.pour-flash { animation: cupFlash 0.25s ease-out; }
+      @keyframes cupFlash {
+        0% { box-shadow: 0 0 0 #FBF1D6; }
+        50% { box-shadow: 0 0 8px #FBF1D6; }
+        100% { box-shadow: 0 0 0 #FBF1D6; }
+      }
+      #cup .layer {
+        position: absolute; left: 0; right: 0; bottom: 0;
+        font-size: 7px; color: #FBF1D6; text-align: center; line-height: 1.1;
+        overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+        border-top: 1px solid #3E2A18; text-shadow: 0 1px 0 #3E2A18;
+        animation: layerFill 0.45s ease-out;
+      }
+      @keyframes layerFill {
+        from { transform: translateY(-6px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      #plate { -webkit-app-region: no-drag; cursor: pointer; }
       /* 木牌：始终可见，方便定位桌宠 */
       #plate {
         font-family: 'DotGothic16', monospace; font-size: 12px; color: #FBF1D6;
         background: #3E2A18; border: 3px solid #1f140b; box-shadow: 3px 3px 0 #1f140b;
-        padding: 4px 12px; margin-top: 6px; white-space: nowrap;
+        padding: 4px 12px; margin-top: 4px; white-space: nowrap;
       }
       .bob { animation: bob 1.6s steps(2) infinite; }
       @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
@@ -33,7 +85,11 @@
   <body>
     <div id="stage">
       <div id="bubble"></div>
-      <div id="sprite" class="bob"></div>
+      <div id="counter"></div>
+      <div id="workspace">
+        <div id="sprite" class="bob"></div>
+        <div id="cup"></div>
+      </div>
       <div id="plate">小精灵待命中</div>
     </div>
     <script src="sprites.js"></script>

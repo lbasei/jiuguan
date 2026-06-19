@@ -18,6 +18,7 @@ export const STEPS = ['bartender', 'todos', 'optimize', 'execute', 'reveal']
 const initial = {
   step: 'bartender',
   bartenderId: 'rosemary',
+  lockedBartenderId: null, // 用户选定后锁定，全程不变
   bartenderNote: '',
   todos: [],
   ingredients: [],
@@ -54,8 +55,16 @@ function reducer(state, action) {
     case 'GO':
       return { ...state, step: action.step }
 
-    case 'SET_BARTENDER':
-      return { ...state, bartenderId: action.id, bartenderNote: action.note || '', strategy: getBartender(action.id).strategy }
+    case 'SET_BARTENDER': {
+      const id = action.id
+      return {
+        ...state,
+        bartenderId: id,
+        lockedBartenderId: state.lockedBartenderId || id,
+        bartenderNote: action.note || '',
+        strategy: getBartender(id).strategy,
+      }
+    }
 
     case 'SET_TODOS':
       return recompute({ ...state, todos: action.todos })
@@ -70,18 +79,18 @@ function reducer(state, action) {
 
     case 'ABSORB': {
       const res = applyExperience(action.exp, state.recipe, getBartender(state.bartenderId))
-      const newBartender = getBartender(res.recommendedBartenderId)
-      const order = orderTodos(state.todos, res.newStrategy) // 进化后顺序重排（可见的进化效果）
+      // 小精灵形象锁定不变，只借用经验的策略和配方微调
+      const newStrategy = res.newStrategy
+      const order = orderTodos(state.todos, newStrategy)
       return {
         ...state,
         recipe: res.recipe,
-        strategy: res.newStrategy,
-        bartenderId: res.recommendedBartenderId,
+        strategy: newStrategy,
         order,
         manualSorted: false,
         drinkName: nameDrink(res.recipe),
         judge: res.judge,
-        advice: adviseManagement(state.todos, newBartender),
+        advice: adviseManagement(state.todos, getBartender(state.bartenderId)),
         absorbed: [...new Set([...state.absorbed, action.exp.id])],
       }
     }
@@ -93,6 +102,9 @@ function reducer(state, action) {
       ;[order[action.index], order[j]] = [order[j], order[action.index]]
       return { ...state, order, manualSorted: true, strategy: 'manual' }
     }
+
+    case 'SET_ORDER':
+      return { ...state, order: action.order, manualSorted: true, strategy: 'manual' }
 
     case 'SET_RECORD':
       return {
@@ -125,7 +137,7 @@ function reducer(state, action) {
     }
 
     case 'RESET':
-      return { ...initial, today: new Date().toISOString().slice(0, 10) }
+      return { ...initial, lockedBartenderId: state.lockedBartenderId, today: new Date().toISOString().slice(0, 10) }
 
     default:
       return state
@@ -135,7 +147,12 @@ function reducer(state, action) {
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return { ...initial, ...JSON.parse(raw) }
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      // 兼容旧数据：锁定小精灵为当前 bartenderId
+      if (!parsed.lockedBartenderId) parsed.lockedBartenderId = parsed.bartenderId || 'rosemary'
+      return { ...initial, ...parsed }
+    }
   } catch {}
   return initial
 }

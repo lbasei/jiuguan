@@ -1,4 +1,4 @@
-// 步骤一：点兵选秀。左右翻 / 拖动，从初始小精灵列表里直接选一只。不描述、不生成。
+// 步骤一：选一只今天的小精灵。左右翻 / 拖动直接挑。
 
 import { useState, useRef } from 'react'
 import { useStore } from '../store/store.jsx'
@@ -39,8 +39,8 @@ export default function BartenderPage() {
 
   return (
     <div>
-      <h2 className="title">点兵 · 选一只今天的小精灵</h2>
-      <p className="subtitle">◀ ▶ 翻阅，或左右拖动。每只是一套管理风格，挑顺眼的那只。</p>
+      <h2 className="title">选一只今天的小精灵</h2>
+      <p className="subtitle">挑顺眼的。</p>
 
       <div className="picker" onPointerDown={onDown} onPointerUp={onUp}>
         <button className="picker-arrow" onClick={() => go(-1)} aria-label="上一只">◀</button>

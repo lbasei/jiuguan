@@ -26,6 +26,18 @@ export function buildReviewCard({ date, todos, ingredients, recipe, bartender, d
   const heaviest = recipe[0]
   const overrun = timed.filter((r) => r.actualTime > r.estimatedTime * 1.2)
 
+  // 时间偏差洞察：把偏差 > 50% 的任务列出来
+  const insights = timed
+    .filter((r) => Math.abs(r.actualTime - r.estimatedTime) / r.estimatedTime > 0.5)
+    .map((r) => {
+      const todo = todos.find((t) => t.id === r.todoId)
+      const title = todo?.title || '某任务'
+      const diff = r.actualTime - r.estimatedTime
+      return diff > 0
+        ? `「${title}」预估 ${r.estimatedTime} 分钟，实际用了 ${r.actualTime} 分钟，多花了 ${diff} 分钟。`
+        : `「${title}」预估 ${r.estimatedTime} 分钟，实际只用了 ${r.actualTime} 分钟，比想象快。`
+    })
+
   let comment = `${bartender.name}：今天完成率 ${Math.round(completionRate * 100)}%。`
   if (overrun.length) comment += `有任务实际用时明显超预期，${heaviest?.name || '主茶底'}偏浓。`
   if (missing.length) comment += `缺了${missing.join('、')}，整杯偏紧。`
@@ -47,6 +59,7 @@ export function buildReviewCard({ date, todos, ingredients, recipe, bartender, d
     recipe,
     heaviest: heaviest?.name || '—',
     missing: missing.length ? missing.join('、') : '无',
+    insights,
     comment,
     suggestion,
   }

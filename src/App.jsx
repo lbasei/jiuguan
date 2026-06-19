@@ -1,5 +1,6 @@
 import { useStore, STEPS } from './store/store.jsx'
-import { llmEnabled } from './engine/llm.js'
+import { useEffect } from 'react'
+import { pushPetState } from './engine/petBridge.js'
 import BartenderPage from './pages/BartenderPage.jsx'
 import TodoPage from './pages/TodoPage.jsx'
 import OptimizePage from './pages/OptimizePage.jsx'
@@ -27,15 +28,21 @@ export default function App() {
   const Page = PAGES[state.step] || BartenderPage
   const curIdx = STEPS.indexOf(state.step)
 
+  // 一旦选定小精灵，在非执行页也保持桌宠形象同步，避免它回到默认色
+  useEffect(() => {
+    if (!state.lockedBartenderId || state.step === 'execute') return
+    const idle = { state: 'idle', bartenderId: state.lockedBartenderId, schedule: [] }
+    pushPetState(idle)
+    const t = setInterval(() => pushPetState(idle), 5000)
+    return () => clearInterval(t)
+  }, [state.lockedBartenderId, state.step])
+
   return (
     <div className="app">
       <div className="topbar">
         <div className="brand">
           Life Kitchen<small>进化酒馆</small>
         </div>
-        <span className={`llm-badge ${llmEnabled() ? 'on' : ''}`}>
-          {llmEnabled() ? '🟢 真·AI 解析' : '⚪ 规则解析'}
-        </span>
       </div>
 
       <div className="steps">

@@ -35,6 +35,11 @@ window.NAME = {
   cilantro: '香菜种种',
 }
 
+// 美术资源映射：有真实图片的小精灵优先用图片，没有则回退到像素网格
+window.IMAGE = {
+  mint: '../../assets/sprites/mint.png',
+}
+
 // 调制手法文案（不点名原料，与网页端一致）
 window.ACTION = {
   deep_work: '慢熬中',

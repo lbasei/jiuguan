@@ -17,6 +17,9 @@
 - **守住揭晓惊喜:原料 / 茶底名 / 今日特调名 / 配方比例,在 1~4 步绝不展示。**优化页用 `adviseManagement`(只谈任务),揭晓页才用 `judgeRecipe`(可点名原料)。执行阶段的手法气泡用"慢熬中/打气中",不写"茶底/气泡"。这条违反 = 产品核心点被破坏。
 - **隐喻一致性优先于技术简洁。** UI 文案、变量名、注释都用调酒语言:小精灵 / 原料 / 调配 / 特调 / 收口。不用"任务卡 / 完成度 / 待办项"这种通用词。
 - **数据契约字段名以 PRD `Life Kitchen2.md` §9.2/§10.3/§11.4/§7.1 为准,不自创同义字段。**`taskType` 与 `category` 的取值是七类原料 key,严格枚举。
+- **小精灵形象一旦选定全程锁定。**`lockedBartenderId` 在 `SET_BARTENDER` 时写入,`ABSORB` 只改 `strategy` 不改 `bartenderId`。任何推给桌宠的状态都用 `lockedBartenderId`,桌宠主进程也锁定第一次收到的 ID。这条违反 = 用户会觉得小精灵"变色""变来变去"。
+- **桌宠是可操作调酒台,不是纯状态看板。**点击清单中的原料 = 标记任务完成 + 原料飞入杯子 + 杯子分层上涨。双向通信走 `pet-send-action` IPC + `/state` 动作轮询。
+- **完成/消耗的反馈要符合现实隐喻。**原料从清单消失并进入杯子,不要简单置灰或变 disabled。杯子里的分层是已完成的可视化,不是额外装饰。
 
 ## 不要做
 
@@ -25,7 +28,13 @@
 - 不要让 LLM 失败把 demo 卡住——`llm.js` 任何异常必须兜回规则解析(`parseTodos` / 规则版小精灵推荐),evaluators 永远拿得到结果。
 - 不要直连 `api.deepseek.com`(CORS 拦),走 Vite proxy `/deepseek`(详见 `docs/runbook.md`)。
 - 不要在桌宠 HTTP 桥的 CORS 响应里漏掉 `Access-Control-Allow-Methods`,会让浏览器预检失败 POST 被静默拦截(踩过一次)。
+- 不要在 UI 上解释"这是 AI 解析"或"规则解析"——用户不需要知道实现细节。
 - commit message 英文;`git push` 等 harry 指令,不自动执行。
+
+## 工作方式约定
+
+- 改完 UI 必须启动真实窗口验证,并请 harry 截图反馈。不能只跑语法和构建。
+- `npm run dev` 会自动打开浏览器;`npm run pet` 一键启动桌宠。跑完后验证窗口应该已经呈现在屏幕上。
 
 ## 完成的定义
 

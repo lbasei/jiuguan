@@ -1,7 +1,7 @@
-// 步骤三：小精灵优化。给排序建议 + EvoMap 经验进化 + 可手动调顺序。
+// 步骤三：小精灵优化。给排序建议 + EvoMap 经验进化 + 可手动拖动调顺序。
 // 关键：只谈任务，不暴露原料/茶底/特调——惊喜留到揭晓页。
 
-import { useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useStore } from '../store/store.jsx'
 import { getBartender } from '../data/bartenders.js'
 import { matchExperiences } from '../engine/evolve.js'
@@ -19,27 +19,60 @@ const STRATEGY_LABEL = {
 export default function OptimizePage() {
   const { state, dispatch } = useStore()
   const bartender = getBartender(state.bartenderId)
-  // recipe 在后台算好了但不展示，仅用于匹配经验
   const matched = useMemo(() => matchExperiences(state.recipe, state.todos), [state.recipe, state.todos])
+  const [draggingId, setDraggingId] = useState(null)
+
+  const handleDragStart = (e, id) => {
+    setDraggingId(id)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', id)
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDrop = (e, targetId) => {
+    e.preventDefault()
+    const sourceId = e.dataTransfer.getData('text/plain') || draggingId
+    setDraggingId(null)
+    if (!sourceId || sourceId === targetId) return
+    const sourceIndex = state.order.findIndex((t) => t.id === sourceId)
+    const targetIndex = state.order.findIndex((t) => t.id === targetId)
+    if (sourceIndex === -1 || targetIndex === -1) return
+    const newOrder = [...state.order]
+    const [moved] = newOrder.splice(sourceIndex, 1)
+    newOrder.splice(targetIndex, 0, moved)
+    dispatch({ type: 'SET_ORDER', order: newOrder })
+  }
+
+  const handleDragEnd = () => setDraggingId(null)
 
   return (
     <div>
-      <h2 className="title">{bartender.emoji ? '' : ''}小精灵帮你排今天的顺序</h2>
-      <p className="subtitle">{bartender.name} · 当前策略：{STRATEGY_LABEL[state.strategy] || state.strategy}。顺序可以手动调，最终成品先卖个关子。</p>
+      <h2 className="title">{bartender.name} 帮你排今天的顺序</h2>
+      <p className="subtitle">当前策略：{STRATEGY_LABEL[state.strategy] || state.strategy}。按住任务拖动换位。</p>
 
       <div className="card">
-        <label className="field">▸ 推荐执行顺序（▲▼ 手动调）</label>
+        <label className="field">▸ 推荐执行顺序（按住拖动）</label>
         {state.order.map((t, i) => (
-          <div key={t.id} className="exec-row">
+          <div
+            key={t.id}
+            className={`exec-row ${draggingId === t.id ? 'dragging' : ''}`}
+            draggable
+            onDragStart={(e) => handleDragStart(e, t.id)}
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, t.id)}
+            onDragEnd={handleDragEnd}
+            style={{ cursor: 'grab' }}
+          >
             <span className="idx">{i + 1}</span>
             <div className="et">
               <div className="ettitle">{t.title}</div>
               <span className="muted-note">约 {t.estimatedTime} 分钟</span>
             </div>
-            <div className="move-btns">
-              <button disabled={i === 0} onClick={() => dispatch({ type: 'MOVE_ORDER', index: i, dir: 'up' })}>▲</button>
-              <button disabled={i === state.order.length - 1} onClick={() => dispatch({ type: 'MOVE_ORDER', index: i, dir: 'down' })}>▼</button>
-            </div>
+            <span className="muted-note" style={{ marginLeft: 'auto' }}>⋮⋮</span>
           </div>
         ))}
       </div>
@@ -73,7 +106,7 @@ export default function OptimizePage() {
         })}
         {state.absorbed.length > 0 && (
           <p className="muted-note">
-            ✦ 小精灵进化了：现在是 {bartender.name}，策略 → {STRATEGY_LABEL[state.strategy]}，上面的执行顺序已经重排。
+            ✦ {bartender.name} 吸收了经验，策略 → {STRATEGY_LABEL[state.strategy]}，执行顺序已重排。
           </p>
         )}
       </div>

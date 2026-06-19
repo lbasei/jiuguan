@@ -12,13 +12,11 @@ export default function TodoPage() {
   const { state, dispatch } = useStore()
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(false)
-  const [source, setSource] = useState('')
 
   async function parse() {
     const input = text.trim() || SAMPLE
     setLoading(true)
     const res = await parseTodosSmart(input)
-    setSource(res.source)
     dispatch({ type: 'SET_TODOS', todos: res.todos })
     setLoading(false)
   }
@@ -41,11 +39,6 @@ export default function TodoPage() {
             {loading ? '整理中…' : todos.length ? '重新整理' : '整理成待办'}
           </button>
           <button className="btn-ghost" onClick={() => setText(SAMPLE)}>用示例</button>
-          {source && (
-            <span className="muted-note">
-              {source === 'llm' ? '由 AI 解析' : source.includes('fallback') ? 'AI 不可用，已用规则解析' : '规则解析'}
-            </span>
-          )}
         </div>
       </div>
 
@@ -79,19 +72,22 @@ export default function TodoPage() {
               <button className="btn-ghost" onClick={() => dispatch({ type: 'REMOVE_TODO', id: t.id })}>删</button>
             </div>
           ))}
+          <div className="btn-row" style={{ marginTop: 12 }}>
+            <div className="spacer" />
+            <button
+              className="btn-primary"
+              disabled={!todos.length}
+              onClick={() => dispatch({ type: 'GO', step: 'optimize' })}
+            >
+              交给小精灵优化 →
+            </button>
+          </div>
         </div>
       )}
 
       <div className="btn-row">
         <button className="btn-ghost" onClick={() => dispatch({ type: 'GO', step: 'bartender' })}>← 上一步</button>
         <div className="spacer" />
-        <button
-          className="btn-primary"
-          disabled={!todos.length}
-          onClick={() => dispatch({ type: 'GO', step: 'optimize' })}
-        >
-          交给小精灵优化 →
-        </button>
       </div>
     </div>
   )

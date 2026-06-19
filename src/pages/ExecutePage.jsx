@@ -1,5 +1,5 @@
 // 步骤四：执行 · 代入感。开始一件事 → 小精灵当场摇杯/熬煮 + 计时 → 完成。
-// 不再是干巴巴打勾：你能感到自己正处在"做这件事"的区间里。状态同步推给桌宠分身。
+// 网页端和桌宠双向同步：桌宠上点击原材料完成，动作会被网页端拉取并记录真实用时。
 
 import { useState, useEffect, useRef } from 'react'
 import { useStore } from '../store/store.jsx'
@@ -7,7 +7,7 @@ import { getBartender } from '../data/bartenders.js'
 import PixelSprite from '../components/PixelSprite.jsx'
 import { CREATURE } from '../components/sprites.js'
 import { BODY } from './BartenderPage.jsx'
-import { petBrew, petIdle, onPetStatus, startPetSync, stopPetSync } from '../engine/petBridge.js'
+import { onPetStatus, startPetSync, stopPetSync, pushPetState, onPetAction, startActionPoll, stopActionPoll } from '../engine/petBridge.js'
 
 // 按"调制手法"描述，不点名原料（茶底/奶泡留到揭晓才揭）
 const ACTION = {
@@ -28,23 +28,80 @@ export default function ExecutePage() {
   const [elapsed, setElapsed] = useState(0)
   const [petOn, setPetOn] = useState(false)
   const timer = useRef(null)
+  const executeStartTime = useRef(Date.now())
+  const lastCompleteTime = useRef(executeStartTime.current)
+  const consumedActionKeys = useRef(new Set())
+  // 桌宠形象一旦进入执行页就固定，不随进化等状态改变而变色
+  const petBartenderIdRef = useRef(state.lockedBartenderId || state.bartenderId)
+
   // 心跳载荷：桌宠任何时候启动都按这个自动同步
-  const payloadRef = useRef({ state: 'idle', bartenderId: state.bartenderId })
+  const payloadRef = useRef(buildIdlePayload())
 
   useEffect(() => onPetStatus(setPetOn), [])
 
-  // 进执行页就开心跳；离开时停掉并让桌宠回到 idle
+  // 进执行页就开心跳 + 动作轮询；离开时停掉
   useEffect(() => {
+    executeStartTime.current = Date.now()
+    lastCompleteTime.current = executeStartTime.current
     startPetSync(() => payloadRef.current)
+    startActionPoll()
     return () => {
       stopPetSync()
-      petIdle(state.bartenderId)
+      stopActionPoll()
+      pushPetState({ state: 'idle', bartenderId: petBartenderIdRef.current })
     }
+  }, []) // eslint-disable-line
+
+  // 监听桌宠点击完成的动作
+  useEffect(() => {
+    return onPetAction((action) => {
+      if (action.type !== 'complete' || !action.todoId || !action.completedAt) return
+      const key = `${action.todoId}-${action.completedAt}`
+      if (consumedActionKeys.current.has(key)) return
+      consumedActionKeys.current.add(key)
+      completeTask(action.todoId, action.completedAt)
+    })
   }, []) // eslint-disable-line
 
   const active = state.order.find((t) => t.id === activeId)
   const durSec = active ? active.estimatedTime * 60 : 0
   const remain = Math.max(0, durSec - elapsed)
+
+  function buildSchedule() {
+    return state.order.map((t) => ({
+      id: t.id,
+      title: t.title,
+      estimatedTime: t.estimatedTime,
+      status: state.records[t.id]?.status || 'pending',
+    }))
+  }
+
+  function buildIdlePayload() {
+    return {
+      state: 'idle',
+      bartenderId: petBartenderIdRef.current,
+      schedule: buildSchedule(),
+    }
+  }
+
+  function buildDonePayload() {
+    return {
+      state: 'done',
+      bartenderId: petBartenderIdRef.current,
+      schedule: buildSchedule(),
+    }
+  }
+
+  function buildBrewPayload(t) {
+    return {
+      state: 'brewing',
+      bartenderId: petBartenderIdRef.current,
+      category: t.taskType,
+      title: t.title,
+      durationSec: t.estimatedTime * 60,
+      schedule: buildSchedule(),
+    }
+  }
 
   useEffect(() => {
     if (!activeId) return
@@ -57,28 +114,68 @@ export default function ExecutePage() {
     if (activeId && remain === 0 && elapsed > 0) finish(active.estimatedTime)
   }, [remain]) // eslint-disable-line
 
+  function computeActualMin(completedAt) {
+    const ms = completedAt - lastCompleteTime.current
+    return Math.max(1, Math.round(ms / 60000))
+  }
+
+  function completeTask(todoId, completedAt) {
+    const t = state.order.find((x) => x.id === todoId)
+    if (!t) return
+    const actualMin = computeActualMin(completedAt)
+    dispatch({ type: 'SET_RECORD', todoId, record: { status: 'completed', actualTime: actualMin, completedAt } })
+    lastCompleteTime.current = completedAt
+
+    // 如果当前 active 正好是这个任务，清空 active
+    if (activeId === todoId) {
+      setActiveId(null)
+      setElapsed(0)
+    }
+
+    // 同步下一状态给桌宠
+    syncNextState(todoId)
+  }
+
+  function syncNextState(extraCompletedId) {
+    const remaining = state.order.filter((t) => {
+      const st = state.records[t.id]?.status
+      if (st === 'completed' || st === 'skipped') return false
+      if (extraCompletedId && t.id === extraCompletedId) return false
+      return true
+    })
+    if (remaining.length === 0) {
+      payloadRef.current = buildDonePayload()
+    } else {
+      payloadRef.current = buildIdlePayload()
+    }
+    pushPetState(payloadRef.current)
+  }
+
   function start(t) {
     setActiveId(t.id)
     setElapsed(0)
-    const p = { state: 'brewing', bartenderId: state.bartenderId, category: t.taskType, title: t.title, durationSec: t.estimatedTime * 60 }
-    payloadRef.current = p // 心跳载荷
-    pushBrew(p)
+    const p = buildBrewPayload(t)
+    payloadRef.current = p
+    pushPetState(p)
   }
-  function pushBrew(p) {
-    petBrew({ bartenderId: p.bartenderId, category: p.category, title: p.title, durationSec: p.durationSec })
-  }
+
   function finish(actualMin) {
     const min = actualMin ?? Math.max(1, Math.round(elapsed / 60))
-    dispatch({ type: 'SET_RECORD', todoId: activeId, record: { status: 'completed', actualTime: min } })
+    const completedAt = Date.now()
+    const id = activeId
+    dispatch({ type: 'SET_RECORD', todoId: activeId, record: { status: 'completed', actualTime: min, completedAt } })
+    lastCompleteTime.current = completedAt
     setActiveId(null)
-    payloadRef.current = { state: 'idle', bartenderId: state.bartenderId }
-    petIdle(state.bartenderId)
+    setElapsed(0)
+    syncNextState(id)
   }
+
   function skip() {
+    const id = activeId
     dispatch({ type: 'SET_RECORD', todoId: activeId, record: { status: 'skipped' } })
     setActiveId(null)
-    payloadRef.current = { state: 'idle', bartenderId: state.bartenderId }
-    petIdle(state.bartenderId)
+    setElapsed(0)
+    syncNextState(id)
   }
 
   const statusOf = (t) => state.records[t.id]?.status

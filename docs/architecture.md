@@ -28,10 +28,10 @@
 ## 用户主线(5 步)
 
 ```
-1. 选小精灵 (BartenderPage)    —— 点兵轮播,左右翻 / 拖动选
+1. 选小精灵 (BartenderPage)    —— 轮播左右翻 / 拖动选一只,选定后形象全程锁定
 2. 倒出待办 (TodoPage)         —— 自然语言一段话 → LLM 拆成结构化 Todo
-3. 小精灵优化 (OptimizePage)   —— 给建议 + 可手动 ▲▼ 排序 + 吸收 EvoMap 经验进化
-4. 执行 (ExecutePage)          —— 点「开始」→ 小精灵摇杯 + 倒计时 + 推桌宠
+3. 小精灵优化 (OptimizePage)   —— 给建议 + 可手动拖动排序 + 吸收 EvoMap 经验进化(只改策略,不改小精灵)
+4. 执行 (ExecutePage)          —— 点「开始」→ 小精灵摇杯 + 倒计时;桌宠上也可点原料入杯完成
 5. 揭晓 (RevealPage)           —— 第一次展示原料瓶 + 今日特调卡
 ```
 
@@ -46,8 +46,12 @@
    │ http://localhost   ├────────────▶│ HTTP 桥 :7878           │
    │   :5173            │  (heartbeat │ 透明置顶窗 + 像素精灵   │
    │                    │   每 2.5s)  │ 状态驱动: idle/brewing  │
-   │ 心跳从执行页发出   │             └─────────────────────────┘
-   └────────────────────┘
+   │ 心跳从执行页发出   │             │ /done + 可操作清单      │
+   └────────────────────┘             └─────────────────────────┘
+            ▲                              │
+            │ GET /state {actions}         │ IPC pet-send-action
+            │ (每 2.5s 轮询)               │ 点击原料 → 完成动作
+            └──────────────────────────────┘
             │ POST /chat/completions (经 Vite dev proxy /deepseek)
             ▼
    ┌────────────────────┐
@@ -56,6 +60,10 @@
    │ OpenAI 兼容        │   - 自然语言 → 推荐小精灵(可选,第一页已改为轮播)
    └────────────────────┘
 ```
+
+**桌宠不是纯展示,是可操作的调酒台**:点击清单里的原材料,该任务会被标记完成,原料「飞入」杯子,杯子按完成顺序分层。全部完成后点击杯子/小精灵打开揭晓页。
+
+**小精灵形象全程锁定**:BartenderPage 选定后 `lockedBartenderId` 写入 store,之后进化、重置新的一天都只清空任务和杯子,不换小精灵。桌宠主进程也锁定第一次收到的 `bartenderId`,防止任何异常推送导致换色。
 
 **桌宠不是必需的**:不开也不影响网页。`petBridge` fire-and-forget,推送失败静默,只是网页右上徽标显示「⚪ 未开」。
 
@@ -73,7 +81,7 @@
 | `plan.js` | 排序策略 + Agent 判断 + 今日特调命名 | `orderTodos` / `nameDrink` / `judgeRecipe` / `adviseManagement` |
 | `evolve.js` | EvoMap 经验匹配与吸收 | `matchExperiences` / `applyExperience` |
 | `review.js` | 日度复盘卡生成 | `buildReviewCard` |
-| `petBridge.js` | 网页 → 桌宠 HTTP 桥 + 心跳 | `petBrew` / `petIdle` / `startPetSync` |
+| `petBridge.js` | 网页 ↔ 桌宠 HTTP 桥 + 心跳 + 动作轮询 | `pushPetState` / `startPetSync` / `startActionPoll` |
 
 `judgeRecipe` vs `adviseManagement`:前者**会点名原料名**(揭晓页用),后者**只谈任务**(优化页用)——这是守住惊喜的关键。
 
@@ -103,6 +111,7 @@ Todo:        { id, title, estimatedTime, taskType, energyCost, emotionalLoad, pr
 Ingredient:  { id, todoId, sourceTodo, category, name, emoji, color, method, ratio, concentration, flavor, statusTaste }
 Bartender:   { id, name, plant, emoji, style, fit, strategy, reminderTone, blurb }
 EvoMap:      { id, name, pattern, condition, strategy, recommendBartenders, effect, confidence, apply }
+Store:       { ..., lockedBartenderId } // 用户选定的小精灵,全程不变
 ```
 
 `taskType` 与 `category` 取值都是七类原料的 key,严格枚举。
@@ -113,14 +122,19 @@ EvoMap:      { id, name, pattern, condition, strategy, recommendBartenders, effe
 
 ```json
 // idle
-{ "state": "idle", "bartenderId": "rosemary" }
+{ "state": "idle", "bartenderId": "rosemary", "schedule": [{"id":"...","title":"...","estimatedTime":15,"status":"pending"}] }
 
 // brewing
 { "state": "brewing", "bartenderId": "ginger", "category": "deep_work",
-  "title": "写 PRD", "durationSec": 5400 }
+  "title": "写 PRD", "durationSec": 5400, "schedule": [...] }
+
+// done
+{ "state": "done", "bartenderId": "mint", "schedule": [...] }
 ```
 
-桌宠收到 `brewing` 时:切换 `sprite-shake` 动画 + 显示气泡(标题 + 调制手法) + `showInactive()` 浮到前面;收到 `idle` 时回到轻晃。
+`GET /state` 返回 `{ current, actions }`。`actions` 是桌宠点击产生的动作队列(如 `{type:"complete",todoId:"...",completedAt:123}`),网页端消费后去重执行。
+
+桌宠收到 `brewing` 时:切换 `sprite-shake` 动画 + 显示气泡(标题 + 调制手法) + `showInactive()` 浮到前面;收到 `idle` 时显示待办清单;收到 `done` 时举着满杯,点击打开揭晓页。
 
 ## 像素风
 

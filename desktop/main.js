@@ -2,13 +2,15 @@
 // 透明置顶无边框窗口 + 本地 HTTP 桥（:7878）。网页把"当前在做哪类任务"POST 进来，
 // 主进程经 IPC 推给渲染层，小精灵分身当场摇杯/熬煮。
 
-const { app, BrowserWindow, screen } = require('electron')
+const { app, BrowserWindow, screen, ipcMain, shell } = require('electron')
 const http = require('http')
 const path = require('path')
 const fs = require('fs')
 
 let win
 let current = { state: 'idle', bartenderId: 'rosemary' }
+let lockedBartenderId = null // 锁定第一次收到的有效小精灵 ID，之后不再变
+let pendingActions = [] // 桌宠点击产生的动作队列，等网页端拉取
 
 // 单实例锁，防重复窗口
 if (!app.requestSingleInstanceLock()) {
@@ -56,6 +58,17 @@ function start() {
     win.showInactive() // 确保启动即可见（不抢焦点）
   })
   startServer()
+
+  // 渲染层请求打开主应用（例如点击饮品进揭晓页）
+  ipcMain.on('pet-open-app', (_e, openPath) => {
+    shell.openExternal(`http://localhost:5173/#/${openPath || 'execute'}`)
+  })
+
+  // 渲染层发送动作（如点击原材料完成），加入队列等网页端拉取
+  ipcMain.on('pet-send-action', (_e, action) => {
+    pendingActions.push(action)
+    if (pendingActions.length > 50) pendingActions = pendingActions.slice(-50)
+  })
 }
 
 function startServer() {
@@ -70,10 +83,16 @@ function startServer() {
         let body = ''
         req.on('data', (c) => (body += c))
         req.on('end', () => {
-          try { current = JSON.parse(body) } catch {}
+          try {
+            current = JSON.parse(body)
+            if (!current.bartenderId) current.bartenderId = 'rosemary'
+            // 第一次收到有效小精灵 ID 就锁定，之后任何页面推送都不许换形象
+            if (!lockedBartenderId) lockedBartenderId = current.bartenderId
+            current.bartenderId = lockedBartenderId
+          } catch {}
+          // 不在这里清空 pendingActions，让网页端轮询去消费并去重
           if (win) {
             win.webContents.send('pet-state', current)
-            // 开始做事时把桌宠浮到前面（不抢焦点）
             if (current.state === 'brewing') win.showInactive()
           }
           res.writeHead(200); res.end('ok')
@@ -82,7 +101,7 @@ function startServer() {
       }
       if (req.url === '/state') {
         res.writeHead(200, { 'content-type': 'application/json' })
-        res.end(JSON.stringify(current))
+        res.end(JSON.stringify({ current, actions: pendingActions }))
         return
       }
       res.writeHead(404); res.end()

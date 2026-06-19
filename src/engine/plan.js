@@ -113,6 +113,36 @@ export function adviseManagement(todos, bartender) {
   }
 }
 
+// —— 碎片时间建议：给桌宠用的轻量推荐 ——
+// 基于排序后的执行顺序和已完成记录，推荐一条可以在间隙处理的碎片任务。
+// 只返回用户输入的任务标题，不剧透原料/茶底/特调名。
+export function suggestFragment(order, records, _now = new Date()) {
+  if (!order || order.length === 0) return null
+  const pending = order.filter((t) => {
+    const st = records?.[t.id]?.status
+    return st !== 'completed' && st !== 'skipped'
+  })
+  if (pending.length === 0) return null
+  const next = pending[0]
+  const fragments = pending.filter(isFragment)
+  if (fragments.length === 0) return null
+
+  // 下一项本身就是碎片任务，直接推荐顺手做掉
+  if (isFragment(next)) {
+    return {
+      text: `下一件「${next.title}」只要 ${next.estimatedTime} 分钟，顺手做了吧`,
+      taskId: next.id,
+    }
+  }
+
+  // 下一项是深度任务，推荐在它之前插一条碎片任务
+  const t = fragments[0]
+  return {
+    text: `做「${next.title}」前，可以插一段「${t.title}」（${t.estimatedTime} 分钟）`,
+    taskId: t.id,
+  }
+}
+
 // —— Agent 判断：基于配方比例给风险提醒和点评（揭晓阶段用，会点名原料）——
 export function judgeRecipe(recipe, bartender) {
   const get = (c) => recipe.find((r) => r.category === c)?.ratio || 0

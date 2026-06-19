@@ -21,12 +21,12 @@ npm run dev                       # http://localhost:5173
 新开一个终端:
 
 ```bash
-cd desktop
-npm install        # 首次,会下载 Electron
-npm start
+npm run pet          # 一键启动桌宠(等价于 cd desktop && npm start)
 ```
 
 启动后右下角出现一只透明置顶的小精灵,在 `http://localhost:7878` 起了一个本地 HTTP 桥;网页执行页一旦点「开始」做事,桌宠就当场摇杯/熬煮——状态自动同步,不用手动连。
+
+你也可以直接在桌宠上点击原材料完成任务:原料会飞入杯子,杯子按完成顺序一层层叠起来。全部完成后点击杯子/小精灵,浏览器自动打开揭晓页。
 
 ## 详细文档
 

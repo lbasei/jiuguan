@@ -26,8 +26,9 @@
 
 ```bash
 # 网页
-npm run dev          # dev server
+npm run dev          # dev server,自动打开浏览器
 npm run build        # 生产构建,完成前必跑这个验收
+npm run pet          # 一键启动桌宠
 
 # 桌宠(Mac)
 cd desktop && npm start         # 启动桌宠
@@ -91,9 +92,10 @@ Access-Control-Allow-Headers: content-type
 
 ```
 src/engine/llm.js           ← LLM 接入点(改模型/换 provider 在这)
-src/engine/petBridge.js     ← 网页 → 桌宠通信
+src/engine/petBridge.js     ← 网页 ↔ 桌宠通信
 src/store/store.jsx         ← reducer + localStorage 持久化(key 'life-kitchen-v2')
-vite.config.js              ← dev proxy 配置(/deepseek)
-desktop/main.js             ← 桌宠主进程(窗口 + HTTP 桥)
-desktop/renderer/pet.js     ← 桌宠状态驱动渲染
+vite.config.js              ← dev proxy 配置(/deepseek) + server.open
+desktop/main.js             ← 桌宠主进程(窗口 + HTTP 桥 + 动作队列)
+desktop/renderer/pet.js     ← 桌宠渲染与交互(清单/杯子/点击完成)
+desktop/renderer/sprites.js ← 像素精灵与调色板
 ```
