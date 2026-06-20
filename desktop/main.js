@@ -8,9 +8,11 @@ const path = require('path')
 const fs = require('fs')
 
 let win
-let current = { state: 'idle', bartenderId: 'rosemary' }
-let lockedBartenderId = null // 锁定第一次收到的有效小精灵 ID，之后不再变
+let current = { state: 'choosing', bartenderId: 'lemon', selected: false }
 let pendingActions = [] // 桌宠点击产生的动作队列，等网页端拉取
+let petMode = 'normal'
+let dragFollowTimer = null
+let dragFollowState = null
 
 // 单实例锁，防重复窗口
 if (!app.requestSingleInstanceLock()) {
@@ -23,23 +25,91 @@ if (!app.requestSingleInstanceLock()) {
 function posFile() {
   return path.join(app.getPath('userData'), 'pet-pos.json')
 }
+function selectedFile() {
+  return path.join(app.getPath('userData'), 'pet-selected.json')
+}
 function loadPos() {
   try { return JSON.parse(fs.readFileSync(posFile(), 'utf8')) } catch { return null }
+}
+function loadSelected() {
+  try { return JSON.parse(fs.readFileSync(selectedFile(), 'utf8')) } catch { return null }
 }
 function savePos() {
   if (!win) return
   const [x, y] = win.getPosition()
   try { fs.writeFileSync(posFile(), JSON.stringify({ x, y })) } catch {}
 }
+function saveSelected() {
+  if (!current?.selected || !current.bartenderId) return
+  try {
+    fs.writeFileSync(selectedFile(), JSON.stringify({
+      bartenderId: current.bartenderId,
+      customBartender: current.customBartender || null,
+    }))
+  } catch {}
+}
+function setPetMode(mode) {
+  if (!win) return
+  petMode = mode === 'island' ? 'island' : 'normal'
+  const wa = screen.getPrimaryDisplay().workArea
+  const [x, y] = win.getPosition()
+  if (petMode === 'island') {
+    const width = 176
+    const height = 78
+    const nextY = Math.min(Math.max(y, wa.y + 18), wa.y + wa.height - height - 18)
+    win.setBounds({ width, height, x: wa.x + wa.width - width - 8, y: nextY })
+  } else {
+    const width = 300
+    const height = 390
+    const nextX = Math.round(wa.x + (wa.width - width) / 2)
+    const nextY = Math.round(wa.y + (wa.height - height) / 2)
+    win.setBounds({ width, height, x: nextX, y: nextY })
+  }
+  savePos()
+  win.webContents.send('pet-mode', petMode)
+}
+
+function stopWindowDragFollow() {
+  if (dragFollowTimer) clearInterval(dragFollowTimer)
+  dragFollowTimer = null
+  dragFollowState = null
+}
+
+function startWindowDragFollow() {
+  if (!win) return
+  stopWindowDragFollow()
+  const cursor = screen.getCursorScreenPoint()
+  const [x, y] = win.getPosition()
+  dragFollowState = { cursorX: cursor.x, cursorY: cursor.y, winX: x, winY: y }
+  dragFollowTimer = setInterval(() => {
+    if (!win || !dragFollowState) return
+    const next = screen.getCursorScreenPoint()
+    const dx = next.x - dragFollowState.cursorX
+    const dy = next.y - dragFollowState.cursorY
+    if (!dx && !dy) return
+    win.setPosition(Math.round(dragFollowState.winX + dx), Math.round(dragFollowState.winY + dy), false)
+  }, 16)
+}
 
 function start() {
-  const pos = loadPos()
-  const wa = screen.getPrimaryDisplay().workAreaSize
+  const selected = loadSelected()
+  if (selected?.bartenderId) {
+    current = {
+      state: 'idle',
+      bartenderId: selected.bartenderId,
+      selected: true,
+      schedule: [],
+      customBartender: selected.customBartender || null,
+    }
+  }
+  const wa = screen.getPrimaryDisplay().workArea
+  const width = 300
+  const height = 390
   win = new BrowserWindow({
-    width: 220,
-    height: 290,
-    x: pos ? pos.x : wa.width - 260,
-    y: pos ? pos.y : wa.height - 340,
+    width,
+    height,
+    x: Math.round(wa.x + (wa.width - width) / 2),
+    y: Math.round(wa.y + (wa.height - height) / 2),
     transparent: true,
     frame: false,
     resizable: false,
@@ -55,7 +125,8 @@ function start() {
   win.on('moved', savePos)
   win.webContents.on('did-finish-load', () => {
     win.webContents.send('pet-state', current)
-    win.showInactive() // 确保启动即可见（不抢焦点）
+    win.webContents.send('pet-mode', petMode)
+    syncWindowVisibility()
   })
   startServer()
 
@@ -68,6 +139,45 @@ function start() {
   ipcMain.on('pet-send-action', (_e, action) => {
     pendingActions.push(action)
     if (pendingActions.length > 50) pendingActions = pendingActions.slice(-50)
+  })
+
+  ipcMain.on('pet-select-bartender', (_e, action = {}) => {
+    if (!action.bartenderId) return
+    current = {
+      ...current,
+      state: 'idle',
+      bartenderId: action.bartenderId,
+      selected: true,
+      schedule: current.schedule || [],
+      customBartender: current.customBartender || null,
+    }
+    saveSelected()
+    pendingActions.push({ type: 'select-bartender', bartenderId: action.bartenderId, selectedAt: action.selectedAt || Date.now() })
+    if (pendingActions.length > 50) pendingActions = pendingActions.slice(-50)
+    win?.webContents.send('pet-state', current)
+    syncWindowVisibility()
+  })
+
+  ipcMain.on('pet-set-mode', (_e, mode) => {
+    setPetMode(mode)
+  })
+
+  ipcMain.on('pet-begin-drag', () => {
+    startWindowDragFollow()
+  })
+
+  ipcMain.on('pet-end-drag', () => {
+    stopWindowDragFollow()
+    savePos()
+  })
+
+  ipcMain.on('pet-drag-window', (_e, delta = {}) => {
+    if (!win) return
+    const dx = Number(delta.dx) || 0
+    const dy = Number(delta.dy) || 0
+    if (!dx && !dy) return
+    const [x, y] = win.getPosition()
+    win.setPosition(Math.round(x + dx), Math.round(y + dy), false)
   })
 }
 
@@ -86,14 +196,12 @@ function startServer() {
           try {
             current = JSON.parse(body)
             if (!current.bartenderId) current.bartenderId = 'rosemary'
-            // 第一次收到有效小精灵 ID 就锁定，之后任何页面推送都不许换形象
-            if (!lockedBartenderId) lockedBartenderId = current.bartenderId
-            current.bartenderId = lockedBartenderId
+            saveSelected()
           } catch {}
           // 不在这里清空 pendingActions，让网页端轮询去消费并去重
           if (win) {
             win.webContents.send('pet-state', current)
-            if (current.state === 'brewing') win.showInactive()
+            syncWindowVisibility()
           }
           res.writeHead(200); res.end('ok')
         })
@@ -101,12 +209,21 @@ function startServer() {
       }
       if (req.url === '/state') {
         res.writeHead(200, { 'content-type': 'application/json' })
-        res.end(JSON.stringify({ current, actions: pendingActions }))
+        const actions = pendingActions
+        pendingActions = []
+        res.end(JSON.stringify({ current, actions }))
         return
       }
       res.writeHead(404); res.end()
     })
     .listen(7878, '127.0.0.1', () => console.log('🍹 桌宠桥已在 http://localhost:7878'))
+}
+
+function syncWindowVisibility() {
+  if (!win) return
+  const shouldShow = current.state === 'choosing' || current.selected || current.state === 'brewing' || current.state === 'done'
+  if (shouldShow) win.showInactive()
+  else win.hide()
 }
 
 app.on('window-all-closed', () => app.quit())

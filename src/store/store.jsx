@@ -17,9 +17,12 @@ export const STEPS = ['bartender', 'todos', 'optimize', 'execute', 'reveal']
 
 const initial = {
   step: 'bartender',
-  bartenderId: 'rosemary',
+  bartenderId: 'lemon',
   lockedBartenderId: null, // 用户选定后锁定，全程不变
   bartenderNote: '',
+  assistantMode: 'daily',
+  sessionNote: '',
+  customBartenders: [],
   todos: [],
   ingredients: [],
   recipe: [],
@@ -32,12 +35,13 @@ const initial = {
   absorbed: [], // 已吸收的 EvoMap 经验 id
   records: {}, // todoId -> { status, actualTime, mood }
   reviewCard: null,
+  cellar: [], // 本地酒柜：保存生成过的今日特调报告
   today: new Date().toISOString().slice(0, 10),
 }
 
 // 由 todos + strategy 重算整条原料/规划链
 function recompute(state) {
-  const bartender = getBartender(state.bartenderId)
+  const bartender = getBartender(state.bartenderId, state.customBartenders)
   const ingredients = extractIngredients(state.todos)
   const recipe = aggregateRecipe(ingredients)
   // 手动排序过就保留用户的顺序，否则按策略重排
@@ -60,14 +64,30 @@ function reducer(state, action) {
       return {
         ...state,
         bartenderId: id,
-        lockedBartenderId: state.lockedBartenderId || id,
+        lockedBartenderId: id,
         bartenderNote: action.note || '',
-        strategy: getBartender(id).strategy,
+        strategy: getBartender(id, state.customBartenders).strategy,
+      }
+    }
+
+    case 'SET_ASSISTANT_MODE':
+      return { ...state, assistantMode: action.mode || 'daily' }
+
+    case 'ADD_CUSTOM_BARTENDER': {
+      const bartender = action.bartender
+      if (!bartender?.id) return state
+      const customBartenders = [bartender, ...state.customBartenders.filter((b) => b.id !== bartender.id)].slice(0, 8)
+      return {
+        ...state,
+        customBartenders,
+        bartenderId: bartender.id,
+        lockedBartenderId: bartender.id,
+        strategy: bartender.strategy,
       }
     }
 
     case 'SET_TODOS':
-      return recompute({ ...state, todos: action.todos })
+      return recompute({ ...state, todos: action.todos, assistantMode: action.mode || state.assistantMode, sessionNote: action.note || state.sessionNote })
 
     case 'UPDATE_TODO': {
       const todos = state.todos.map((t) => (t.id === action.id ? { ...t, ...action.patch } : t))
@@ -78,7 +98,7 @@ function reducer(state, action) {
       return recompute({ ...state, todos: state.todos.filter((t) => t.id !== action.id) })
 
     case 'ABSORB': {
-      const res = applyExperience(action.exp, state.recipe, getBartender(state.bartenderId))
+      const res = applyExperience(action.exp, state.recipe, getBartender(state.bartenderId, state.customBartenders))
       // 小精灵形象锁定不变，只借用经验的策略和配方微调
       const newStrategy = res.newStrategy
       const order = orderTodos(state.todos, newStrategy)
@@ -90,7 +110,7 @@ function reducer(state, action) {
         manualSorted: false,
         drinkName: nameDrink(res.recipe),
         judge: res.judge,
-        advice: adviseManagement(state.todos, getBartender(state.bartenderId)),
+        advice: adviseManagement(state.todos, getBartender(state.bartenderId, state.customBartenders)),
         absorbed: [...new Set([...state.absorbed, action.exp.id])],
       }
     }
@@ -113,7 +133,7 @@ function reducer(state, action) {
       }
 
     case 'FINALIZE': {
-      const bartender = getBartender(state.bartenderId)
+      const bartender = getBartender(state.bartenderId, state.customBartenders)
       const records = state.todos.map((t) => {
         const r = state.records[t.id] || {}
         return {
@@ -124,20 +144,45 @@ function reducer(state, action) {
           estimatedTime: t.estimatedTime,
         }
       })
+      const completedIds = new Set(records.filter((r) => r.status === 'completed').map((r) => r.todoId))
+      const completedTodos = state.todos.filter((t) => completedIds.has(t.id))
+      const finalIngredients = extractIngredients(completedTodos)
+      const finalRecipe = aggregateRecipe(finalIngredients)
+      const finalDrinkName = finalRecipe.length ? nameDrink(finalRecipe) : '空杯'
       const reviewCard = buildReviewCard({
         date: state.today,
         todos: state.todos,
-        ingredients: state.ingredients,
-        recipe: state.recipe,
+        mode: state.assistantMode,
+        sessionNote: state.sessionNote,
+        ingredients: finalIngredients,
+        recipe: finalRecipe,
         bartender,
-        drinkName: state.drinkName,
+        drinkName: finalDrinkName,
         records,
       })
-      return { ...state, reviewCard, step: 'reveal' }
+      return { ...state, reviewCard, ingredients: finalIngredients, recipe: finalRecipe, drinkName: finalDrinkName, step: 'reveal' }
+    }
+
+    case 'SAVE_TO_CELLAR': {
+      if (!state.reviewCard) return state
+      const saved = {
+        ...state.reviewCard,
+        id: `${state.reviewCard.date}-${state.reviewCard.drinkName}`,
+        savedAt: new Date().toISOString(),
+      }
+      const cellar = [saved, ...state.cellar.filter((item) => item.id !== saved.id)].slice(0, 12)
+      return { ...state, cellar }
     }
 
     case 'RESET':
-      return { ...initial, lockedBartenderId: state.lockedBartenderId, today: new Date().toISOString().slice(0, 10) }
+      return {
+        ...initial,
+        bartenderId: state.lockedBartenderId || state.bartenderId,
+        lockedBartenderId: state.lockedBartenderId,
+        cellar: state.cellar,
+        customBartenders: state.customBartenders,
+        today: new Date().toISOString().slice(0, 10),
+      }
 
     default:
       return state

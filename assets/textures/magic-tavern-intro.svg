@@ -1,0 +1,57 @@
+<svg width="1600" height="1000" viewBox="0 0 1600 1000" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="linen" width="10" height="10" patternUnits="userSpaceOnUse">
+      <path d="M0 1H10M1 0V10" stroke="#7EA9AE" stroke-opacity=".055" stroke-width="1"/>
+      <path d="M0 7H10M7 0V10" stroke="#FFFFFF" stroke-opacity=".11" stroke-width="1"/>
+    </pattern>
+    <pattern id="vine" width="320" height="360" patternUnits="userSpaceOnUse">
+      <path d="M160 34C116 78 92 128 98 186C104 246 135 290 160 328C185 290 216 246 222 186C228 128 204 78 160 34Z" stroke="#406F7D" stroke-opacity=".12" stroke-width="5"/>
+      <path d="M160 88C126 128 126 176 160 224C194 176 194 128 160 88Z" stroke="#406F7D" stroke-opacity=".11" stroke-width="4"/>
+      <path d="M96 170C60 146 36 110 28 70C72 80 104 112 116 154M224 170C260 146 284 110 292 70C248 80 216 112 204 154" stroke="#406F7D" stroke-opacity=".105" stroke-width="4" stroke-linecap="round"/>
+      <path d="M82 280C116 260 142 235 160 202C178 235 204 260 238 280" stroke="#406F7D" stroke-opacity=".1" stroke-width="4" stroke-linecap="round"/>
+    </pattern>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="1000" fill="#EAF8F7"/>
+  <rect width="1600" height="1000" fill="url(#linen)"/>
+  <rect width="1600" height="1000" fill="url(#vine)" opacity=".72"/>
+
+  <path d="M124 1000V304C124 194 214 104 324 104H1276C1386 104 1476 194 1476 304V1000H124Z" fill="#D6EFF1" fill-opacity=".42"/>
+  <path d="M204 1000V338C204 238 286 156 386 156H1214C1314 156 1396 238 1396 338V1000" stroke="#315B72" stroke-opacity=".13" stroke-width="10"/>
+  <path d="M324 1000V406C324 284 420 188 542 188H1058C1180 188 1276 284 1276 406V1000" fill="#F7FBF4" fill-opacity=".22"/>
+
+  <g opacity=".48">
+    <path d="M270 804H1330V1000H270V804Z" fill="#6E5C4B" fill-opacity=".18"/>
+    <path d="M312 778H1288C1322 778 1350 806 1350 840H250C250 806 278 778 312 778Z" fill="#7B6A52" fill-opacity=".22"/>
+    <path d="M360 804V1000M460 804V1000M560 804V1000M660 804V1000M760 804V1000M860 804V1000M960 804V1000M1060 804V1000M1160 804V1000M1260 804V1000" stroke="#2E4859" stroke-opacity=".12" stroke-width="3"/>
+  </g>
+
+  <g opacity=".54">
+    <path d="M232 360C232 312 270 274 318 274C366 274 404 312 404 360C404 408 366 446 318 446C270 446 232 408 232 360Z" fill="#FFF1B8" fill-opacity=".18" filter="url(#soft)"/>
+    <path d="M1196 360C1196 312 1234 274 1282 274C1330 274 1368 312 1368 360C1368 408 1330 446 1282 446C1234 446 1196 408 1196 360Z" fill="#FFF1B8" fill-opacity=".18" filter="url(#soft)"/>
+    <path d="M318 264V232M318 456V500M286 306L258 278M350 306L378 278" stroke="#9C7C42" stroke-opacity=".34" stroke-width="7" stroke-linecap="round"/>
+    <path d="M1282 264V232M1282 456V500M1250 306L1222 278M1314 306L1342 278" stroke="#9C7C42" stroke-opacity=".34" stroke-width="7" stroke-linecap="round"/>
+    <path d="M294 352C294 338 304 328 318 328C332 328 342 338 342 352C342 366 332 376 318 376C304 376 294 366 294 352Z" fill="#F6DFA1" fill-opacity=".52"/>
+    <path d="M1258 352C1258 338 1268 328 1282 328C1296 328 1306 338 1306 352C1306 366 1296 376 1282 376C1268 376 1258 366 1258 352Z" fill="#F6DFA1" fill-opacity=".52"/>
+  </g>
+
+  <g opacity=".25">
+    <path d="M770 452C748 470 736 496 736 526C736 568 765 604 800 604C835 604 864 568 864 526C864 496 852 470 830 452H770Z" fill="#FFFFFF"/>
+    <path d="M760 452H840M800 604V686M752 686H848" stroke="#325C73" stroke-width="8" stroke-linecap="round"/>
+    <path d="M748 522H852" stroke="#89DCD7" stroke-width="16" stroke-linecap="round"/>
+    <path d="M758 488H842" stroke="#F6EAB2" stroke-width="14" stroke-linecap="round"/>
+  </g>
+
+  <g opacity=".58">
+    <path d="M206 646L222 686L262 702L222 718L206 758L190 718L150 702L190 686L206 646Z" fill="#C6D0FF"/>
+    <path d="M1392 598L1405 630L1437 643L1405 656L1392 688L1379 656L1347 643L1379 630L1392 598Z" fill="#C6D0FF"/>
+    <path d="M456 236L466 260L490 270L466 280L456 304L446 280L422 270L446 260L456 236Z" fill="#F8E4A9"/>
+    <path d="M1130 226L1140 250L1164 260L1140 270L1130 294L1120 270L1096 260L1120 250L1130 226Z" fill="#F8E4A9"/>
+  </g>
+
+  <rect width="1600" height="1000" fill="#FFFFFF" opacity=".18"/>
+  <path d="M0 0H1600V1000H0V0Z" fill="#BFE9E4" opacity=".08"/>
+</svg>

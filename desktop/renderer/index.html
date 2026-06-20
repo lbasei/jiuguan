@@ -3,34 +3,163 @@
   <head>
     <meta charset="UTF-8" />
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&family=Cinzel+Decorative:wght@700&family=ZCOOL+XiaoWei&display=swap');
       html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; -webkit-user-select: none; }
       #stage {
         height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-        padding-bottom: 6px; -webkit-app-region: drag; cursor: grab;
+        padding-bottom: 6px; cursor: grab; touch-action: none;
+        app-region: no-drag; -webkit-app-region: no-drag; user-select: none;
+      }
+      #stage.dragging { cursor: grabbing; }
+      #stage.choosing-mode { cursor: default; }
+      #stage.island-mode {
+        flex-direction: row; justify-content: center; gap: 8px; padding: 6px 8px;
+        background: transparent;
+        border: 0; box-shadow: none;
+        cursor: pointer;
+      }
+      #petControls {
+        position: absolute; right: 7px; top: 7px; display: flex; gap: 5px;
+        app-region: no-drag; -webkit-app-region: no-drag; z-index: 3;
+      }
+      .pet-tool {
+        width: 28px; height: 28px; padding: 0; border: 2px solid #23445C;
+        background: #F8FFFD; color: #23445C;
+        box-shadow: 2px 2px 0 #23445C; font-size: 15px; line-height: 1; cursor: pointer;
+        font-family: 'DotGothic16', monospace; position: relative;
+      }
+      .pet-tool:hover { filter: brightness(1.06); }
+      .pet-tool::before,
+      .pet-tool::after { content: ''; position: absolute; display: block; }
+      .tool-wand::before {
+        width: 17px; height: 4px; left: 5px; top: 12px;
+        background: #F8FFFD; border: 2px solid #23445C; transform: rotate(-38deg);
+      }
+      .tool-wand::after {
+        width: 8px; height: 8px; right: 4px; top: 3px; background: #7E8BE6;
+        clip-path: polygon(50% 0, 62% 36%, 100% 50%, 62% 64%, 50% 100%, 38% 64%, 0 50%, 38% 36%);
+        filter: drop-shadow(1px 1px 0 #23445C);
+      }
+      .tool-clock::before {
+        content: '00'; left: 4px; top: 8px; width: 18px; height: auto;
+        font-family: 'Press Start 2P', monospace; font-size: 7px; color: #23445C;
+        border: 0; border-radius: 0; background: transparent; box-shadow: none;
+      }
+      .tool-clock::after {
+        display: none;
+      }
+      #stage.island-mode #petControls,
+      #stage.island-mode #bubble,
+      #stage.island-mode #counter,
+      #stage.island-mode #cup,
+      #stage.island-mode #plate,
+      #stage.island-mode .chooser-arrow,
+      #stage.island-mode #magicFx {
+        display: none;
       }
       #bubble {
-        font-family: 'DotGothic16', monospace; font-size: 11px; color: #3E2A18;
-        background: #FBF1D6; border: 3px solid #3E2A18; box-shadow: 3px 3px 0 #3E2A18;
-        padding: 5px 9px; margin-bottom: 5px; max-width: 170px; text-align: center; min-height: 16px;
+        font-family: 'DotGothic16', monospace; font-size: 13px; color: #23445C;
+        position: relative; overflow: hidden;
+        background: rgba(248,255,253,.96);
+        border: 3px double #23445C; box-shadow: 3px 3px 0 #23445C, 0 0 0 2px rgba(201,255,240,.56);
+        padding: 8px 16px; margin-bottom: 7px; max-width: 238px; text-align: center; min-height: 20px;
         opacity: 0; transition: opacity .2s;
+        clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px);
       }
       #bubble.show { opacity: 1; }
-      #bubble .act { font-family: 'Press Start 2P'; font-size: 8px; color: #B5662A; display: block; margin-top: 4px; }
+      #bubble .act { font-family: 'Press Start 2P'; font-size: 8px; color: #7E8BE6; display: block; margin-top: 4px; }
+      #bubble .summon-call {
+        display: block; font-family: 'Cinzel Decorative', 'ZCOOL XiaoWei', serif;
+        font-size: 15px; font-weight: 700; color: #23445C; text-shadow: 0 1px 0 rgba(255,255,255,.75);
+      }
+      #bubble .summon-call::before,
+      #bubble .summon-call::after {
+        content: '✦'; color: #7E8BE6; font-family: 'DotGothic16', monospace; font-size: 11px; margin: 0 5px;
+      }
+      #bubble .summon-sub {
+        display: block; margin-top: 2px; color: #638397; font-size: 10px;
+      }
       #counter {
-        font-family: 'DotGothic16', monospace; font-size: 10px; color: #3E2A18;
-        background: #FBF1D6; border: 3px solid #3E2A18; box-shadow: 3px 3px 0 #3E2A18;
-        padding: 4px 6px; margin-bottom: 5px; max-width: 190px; max-height: 70px; overflow-y: auto;
+        font-family: 'DotGothic16', monospace; font-size: 12px; color: #23445C;
+        background: rgba(255,253,244,.98);
+        background-size: 16px 100%, auto;
+        border: 3px solid #23445C; box-shadow: 4px 4px 0 rgba(35,68,92,.85), 0 0 0 2px rgba(255,243,196,.58);
+        padding: 8px 9px; margin-bottom: 7px; width: 260px; max-height: 148px; overflow-y: auto;
         text-align: left; opacity: 0; visibility: hidden; transition: opacity .2s;
+        clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%, 0 8px);
+      }
+      #timerChip {
+        display: none; align-items: center; justify-content: center;
+        font-family: 'Press Start 2P', monospace; font-size: 11px; color: #23445C;
+        border: 0; background: transparent; letter-spacing: 0;
+        box-shadow: none; padding: 3px 2px; margin-bottom: 5px;
+        app-region: no-drag; -webkit-app-region: no-drag;
+        text-shadow:
+          -1px 0 0 #F8FFFD,
+          1px 0 0 #F8FFFD,
+          0 -1px 0 #F8FFFD,
+          0 1px 0 #F8FFFD,
+          2px 2px 0 rgba(35,68,92,.18);
+      }
+      #timerChip.show { display: inline-flex; }
+      #timerChip .timer-mark {
+        display: none;
+      }
+      #timerChip.over {
+        color: #D86F63;
+      }
+      #stage.island-mode #timerChip {
+        display: inline-flex; margin: 0; box-shadow: none; border-width: 0; padding: 0;
+        max-width: 128px; overflow: hidden;
+        font-size: 12px;
+      }
+      #stage.island-mode #timerChip::before {
+        content: 'TIME'; font-family: 'Press Start 2P', monospace; font-size: 5px;
+        margin-right: 5px; color: #638397; transform: translateY(-1px);
+      }
+      #stage.island-mode #timerChip.over::before {
+        content: '+TIME'; color: #D86F63;
       }
       #counter.show { opacity: 1; visibility: visible; }
+      #counter .ticket-head {
+        display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        font-family: 'Cinzel Decorative', 'ZCOOL XiaoWei', serif; font-size: 13px;
+        color: #8A6D3B; margin-bottom: 5px; border-bottom: 1px dashed rgba(35,68,92,.32); padding-bottom: 4px;
+      }
+      #counter .ticket-head small { font-family: 'DotGothic16', monospace; font-size: 10px; color: #638397; }
       #counter .ingredient {
-        padding: 2px 0; border-bottom: 1px dashed #3E2A18; cursor: pointer;
-        -webkit-app-region: no-drag; position: relative;
+        padding: 5px 0; border-bottom: 1px dashed rgba(35,68,92,.3); cursor: default;
+        app-region: no-drag; -webkit-app-region: no-drag; position: relative;
+        display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: 5px;
       }
       #counter .ingredient:last-child { border-bottom: none; }
+      #counter .task-check {
+        width: 20px; height: 20px; border: 2px solid #23445C; background: #F8FFFD;
+        box-shadow: 1px 1px 0 rgba(35,68,92,.28); cursor: pointer;
+      }
+      #counter .ingredient.done .task-check {
+        background: #FFE8A3;
+      }
+      #counter .ingredient.done .task-check::after {
+        content: ''; display: block; width: 12px; height: 7px; margin: 3px 0 0 3px;
+        border-left: 4px solid #D49A00; border-bottom: 4px solid #D49A00; transform: rotate(-45deg);
+      }
       #counter .ing-title { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      #counter .ing-meta { font-size: 9px; color: #B5662A; }
+      #counter .ing-meta { font-size: 11px; color: #638397; }
+      #counter .ticket-actions {
+        display: flex; justify-content: center; gap: 8px; padding-top: 7px;
+      }
+      #counter .ticket-actions button,
+      #petConfirm {
+        border: 0; background: transparent; box-shadow: none; color: #8A6D3B;
+        font-family: 'Cinzel Decorative', 'ZCOOL XiaoWei', serif; font-size: 14px; font-weight: 700;
+        text-shadow: 0 1px 0 rgba(255,255,255,.8), 0 0 10px rgba(255,243,196,.5);
+        cursor: pointer;
+      }
+      #petConfirm {
+        display: none; margin: 2px 0 5px; app-region: no-drag; -webkit-app-region: no-drag;
+      }
+      #stage.choosing-mode #petConfirm { display: block; }
       #counter .ingredient.pouring {
         animation: pourIntoCup 0.55s ease-in forwards;
         pointer-events: none;
@@ -41,40 +170,176 @@
       }
       #workspace {
         display: flex; flex-direction: row; align-items: flex-end; justify-content: center;
-        gap: 6px; margin-bottom: 2px;
+        gap: 6px; margin-bottom: 2px; position: relative;
       }
-      #sprite { image-rendering: pixelated; -webkit-app-region: no-drag; cursor: pointer; }
+      .chooser-arrow {
+        width: 42px; height: 52px; border: 0; padding: 0; margin-bottom: 60px;
+        background: transparent; box-shadow: none; opacity: 0; visibility: hidden;
+        app-region: no-drag; -webkit-app-region: no-drag; cursor: pointer;
+        position: relative; z-index: 9; flex: 0 0 42px; pointer-events: auto;
+        filter: drop-shadow(2px 2px 0 #23445C);
+      }
+      #stage.choosing-mode .chooser-arrow { opacity: 1; visibility: visible; }
+      .chooser-arrow::before {
+        content: ''; display: block; width: 28px; height: 38px; margin: 7px auto; background: #8FE4DF;
+        clip-path: polygon(
+          100% 0, 62% 0, 0 50%,
+          62% 100%, 100% 100%, 38% 50%
+        );
+      }
+      #petNext::before { transform: scaleX(-1); }
+      .chooser-arrow:hover::before { background: #C9FFF0; }
+      #magicFx {
+        position: absolute; left: 50%; top: 50%; width: 170px; height: 145px;
+        transform: translate(-50%, -58%); pointer-events: none; opacity: 0;
+      }
+      #magicFx.show { opacity: 1; }
+      #magicFx .wand {
+        position: absolute; width: 58px; height: 8px; left: 22px; top: 38px;
+        background: #F1FFFC; border: 2px solid #23445C; box-shadow: 3px 3px 0 #23445C;
+        transform-origin: 100% 50%; opacity: 0;
+      }
+      #magicFx .wand::after {
+        content: ''; position: absolute; right: -10px; top: -8px; width: 10px; height: 10px;
+        background: #7E8BE6;
+        box-shadow: 0 -7px 0 -2px #7E8BE6, 0 7px 0 -2px #7E8BE6, -7px 0 0 -2px #7E8BE6, 7px 0 0 -2px #7E8BE6;
+      }
+      #magicFx .glass {
+        position: absolute; bottom: 20px; width: 24px; height: 31px;
+        border: 3px solid #23445C; border-top: 0; background: rgba(143,228,223,.32);
+        box-shadow: 3px 3px 0 #23445C; opacity: 0;
+      }
+      #magicFx .glass::before {
+        content: ''; position: absolute; left: 2px; right: 2px; bottom: 3px; height: 13px; background: #8FE4DF;
+      }
+      #magicFx .glass.left { left: 48px; transform: rotate(-12deg); }
+      #magicFx .glass.right { right: 48px; transform: rotate(12deg); }
+      #magicFx .spark {
+        position: absolute; width: 7px; height: 7px; background: #7E8BE6; opacity: 0;
+        box-shadow: 0 -6px 0 -2px #7E8BE6, 0 6px 0 -2px #7E8BE6, -6px 0 0 -2px #7E8BE6, 6px 0 0 -2px #7E8BE6;
+      }
+      #magicFx .spark.s1 { left: 72px; top: 36px; }
+      #magicFx .spark.s2 { right: 54px; top: 54px; transform: scale(.8); }
+      #magicFx .spark.s3 { left: 92px; bottom: 34px; transform: scale(.7); }
+      #magicFx.toast .wand { animation: wandCast .72s steps(3) both; }
+      #magicFx.toast .glass.left { animation: glassLeft .76s ease-out both; }
+      #magicFx.toast .glass.right { animation: glassRight .76s ease-out both; }
+      #magicFx.toast .spark { animation: sparklePop .82s ease-out both; }
+      #magicFx.summon .wand { animation: wandCast .9s steps(4) both; }
+      #magicFx.summon .spark { animation: sparklePop 1s ease-out both; }
+      @keyframes wandCast {
+        0% { opacity: 0; transform: translate(-18px, 18px) rotate(-35deg); }
+        20% { opacity: 1; }
+        75% { opacity: 1; transform: translate(34px, -18px) rotate(22deg); }
+        100% { opacity: 0; transform: translate(44px, -24px) rotate(26deg); }
+      }
+      @keyframes glassLeft {
+        0% { opacity: 0; transform: translate(-18px, 6px) rotate(-25deg); }
+        45% { opacity: 1; transform: translate(0, 0) rotate(-12deg); }
+        70% { opacity: 1; transform: translate(10px, -5px) rotate(10deg); }
+        100% { opacity: 0; transform: translate(2px, 0) rotate(-8deg); }
+      }
+      @keyframes glassRight {
+        0% { opacity: 0; transform: translate(18px, 6px) rotate(25deg); }
+        45% { opacity: 1; transform: translate(0, 0) rotate(12deg); }
+        70% { opacity: 1; transform: translate(-10px, -5px) rotate(-10deg); }
+        100% { opacity: 0; transform: translate(-2px, 0) rotate(8deg); }
+      }
+      @keyframes sparklePop {
+        0% { opacity: 0; transform: scale(.3) rotate(0deg); }
+        35% { opacity: 1; }
+        100% { opacity: 0; transform: scale(1.45) rotate(90deg); }
+      }
+      #sprite {
+        image-rendering: pixelated; cursor: grab; transform-origin: 50% 80%;
+        position: relative; width: 210px; height: 210px; display: flex; align-items: center; justify-content: center;
+        app-region: no-drag; -webkit-app-region: no-drag;
+      }
+      #sprite.dragging,
+      #plate.dragging { cursor: grabbing; }
+      #stage.choosing-mode #sprite { cursor: pointer; }
+      #stage.island-mode #sprite {
+        width: 52px; height: 52px; flex: 0 0 52px;
+      }
+      #stage.island-mode #sprite img {
+        width: 52px; height: 52px;
+      }
+      #stage.island-mode #sprite svg {
+        width: 52px; height: 52px;
+      }
+      #sprite img {
+        width: 210px; height: 210px; object-fit: contain; image-rendering: pixelated; display: block;
+        -webkit-user-drag: none; user-select: none;
+      }
+      #sprite[data-pet="ginger"] img {
+        width: 232px; height: 232px;
+        transform: translateY(8px);
+        transform-origin: 50% 80%;
+      }
+      #sprite[data-pet="cilantro"] img,
+      #sprite[data-pet="cilantro"] svg {
+        width: 244px; height: 244px;
+        transform: translateY(12px);
+        transform-origin: 50% 80%;
+      }
+      #stage[data-pet="ginger"] #workspace {
+        margin-bottom: -4px;
+      }
+      #stage.island-mode #sprite[data-pet="ginger"] img {
+        width: 60px; height: 60px;
+        transform: translateY(4px);
+      }
+      #stage.island-mode #sprite[data-pet="cilantro"] img,
+      #stage.island-mode #sprite[data-pet="cilantro"] svg {
+        width: 62px; height: 62px;
+        transform: translateY(5px);
+      }
       #cup {
-        width: 34px; height: 46px; margin-bottom: 2px;
-        border: 3px solid #3E2A18; border-top: none; border-radius: 0 0 9px 9px;
-        background: rgba(251, 241, 214, 0.3); position: relative; overflow: hidden;
+        width: 42px; height: 56px; margin-bottom: 4px;
+        border: 3px solid #23445C; border-top: none; border-radius: 0 0 9px 9px;
+        background: rgba(248, 255, 253, 0.38); position: relative; overflow: hidden;
         opacity: 0; visibility: hidden; transition: opacity .2s;
-        -webkit-app-region: no-drag; cursor: pointer;
+        app-region: no-drag; -webkit-app-region: no-drag; cursor: pointer;
       }
       #cup.show { opacity: 1; visibility: visible; }
       #cup.pour-flash { animation: cupFlash 0.25s ease-out; }
       @keyframes cupFlash {
-        0% { box-shadow: 0 0 0 #FBF1D6; }
-        50% { box-shadow: 0 0 8px #FBF1D6; }
-        100% { box-shadow: 0 0 0 #FBF1D6; }
+        0% { box-shadow: 0 0 0 #C9FFF0; }
+        50% { box-shadow: 0 0 8px #C9FFF0; }
+        100% { box-shadow: 0 0 0 #C9FFF0; }
       }
       #cup .layer {
         position: absolute; left: 0; right: 0; bottom: 0;
-        font-size: 7px; color: #FBF1D6; text-align: center; line-height: 1.1;
+        font-size: 7px; color: #F8FFFD; text-align: center; line-height: 1.1;
         overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-        border-top: 1px solid #3E2A18; text-shadow: 0 1px 0 #3E2A18;
+        border-top: 1px solid #23445C; text-shadow: 0 1px 0 #23445C;
         animation: layerFill 0.45s ease-out;
       }
       @keyframes layerFill {
         from { transform: translateY(-6px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
       }
-      #plate { -webkit-app-region: no-drag; cursor: pointer; }
-      /* 木牌：始终可见，方便定位桌宠 */
+      #plate { cursor: pointer; app-region: no-drag; -webkit-app-region: no-drag; }
+      /* 魔法名牌：始终可见，方便定位桌宠 */
       #plate {
-        font-family: 'DotGothic16', monospace; font-size: 12px; color: #FBF1D6;
-        background: #3E2A18; border: 3px solid #1f140b; box-shadow: 3px 3px 0 #1f140b;
-        padding: 4px 12px; margin-top: 4px; white-space: nowrap;
+        font-family: 'DotGothic16', monospace; font-size: 12px; color: #23445C;
+        position: relative; overflow: hidden;
+        background: #F1FFFC;
+        border: 3px solid #23445C; box-shadow: 3px 3px 0 #23445C, 0 0 0 2px rgba(201,255,240,.72);
+        padding: 5px 18px; margin-top: 4px; white-space: nowrap;
+        text-shadow: 0 1px 0 rgba(255,255,255,.75);
+      }
+      #plate::before,
+      #plate::after {
+        content: ''; position: absolute; width: 9px; height: 9px; top: 50%; transform: translateY(-50%);
+        background: #B996FF;
+        clip-path: polygon(50% 0, 62% 36%, 100% 50%, 62% 64%, 50% 100%, 38% 64%, 0 50%, 38% 36%);
+        filter: drop-shadow(1px 1px 0 #23445C);
+      }
+      #plate::before { left: 5px; }
+      #plate::after { right: 5px; background: #C9FFF0; }
+      #plate:hover {
+        filter: brightness(1.04);
       }
       .bob { animation: bob 1.6s steps(2) infinite; }
       @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
@@ -84,15 +349,32 @@
   </head>
   <body>
     <div id="stage">
+      <div id="petControls">
+        <button id="petMood" class="pet-tool tool-wand" aria-label="给桌宠施开心魔法" title="开心魔法"></button>
+        <button id="petDock" class="pet-tool tool-clock" aria-label="进入像素计时器" title="像素计时器"></button>
+      </div>
       <div id="bubble"></div>
+      <button id="petConfirm" aria-label="确认召唤当前种种">确认召唤</button>
+      <div id="timerChip"><span class="timer-mark" aria-hidden="true"></span><strong id="timerText">00:00</strong></div>
       <div id="counter"></div>
       <div id="workspace">
+        <div id="magicFx">
+          <span class="wand"></span>
+          <span class="glass left"></span>
+          <span class="glass right"></span>
+          <span class="spark s1"></span>
+          <span class="spark s2"></span>
+          <span class="spark s3"></span>
+        </div>
+        <button id="petPrev" class="chooser-arrow" aria-label="上一只种种"></button>
         <div id="sprite" class="bob"></div>
+        <button id="petNext" class="chooser-arrow" aria-label="下一只种种"></button>
         <div id="cup"></div>
       </div>
       <div id="plate">小精灵待命中</div>
     </div>
     <script src="sprites.js"></script>
+    <script src="animationApi.js"></script>
     <script src="pet.js"></script>
   </body>
 </html>

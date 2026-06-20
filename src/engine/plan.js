@@ -1,6 +1,8 @@
 // 纯函数：调酒师层 + 今日特调规划。
 // 输入待办+调酒师策略，输出排序后的执行顺序、特调名、风险提醒、点评。
 
+import { formatDuration } from './time.js'
+
 const PRIORITY_RANK = { high: 0, medium: 1, low: 2 }
 const isDeep = (t) => t.taskType === 'deep_work' || t.taskType === 'creative'
 const isFragment = (t) => t.taskType === 'admin' || t.taskType === 'communication'
@@ -100,16 +102,16 @@ export function adviseManagement(todos, bartender) {
 
   const tips = []
   if (admin >= 0.35 && deep <= 0.25)
-    tips.push('今天碎事偏多、硬核任务偏少，当心一天都在处理杂活——把零碎的集中起来批量解决。')
-  if (recovery < 0.08) tips.push('一整天几乎没给自己留休息，后半程容易没电，建议塞一段缓冲。')
-  if (urgent >= 0.3) tips.push('紧急任务扎堆，别全程冲刺，挑一两个真要命的先打掉。')
+    tips.push('今日酒单里细碎委托太多，主炉火不够旺。把零散纸条先收进同一只托盘，等钟声响起时一口气处理。')
+  if (recovery < 0.08) tips.push('酒馆长廊里少了一盏回神灯。请在高塔任务之后留一小段月光缓冲，让种种把魔力重新续上。')
+  if (urgent >= 0.3) tips.push('急件像火焰符咒一样堆在吧台上。先挑最烫手的一两张封印，别把整座酒馆都点燃。')
   if (deep >= 0.4 && recovery < 0.12)
-    tips.push('硬核任务很密，记得在高强度任务之间留口气，别硬扛到底。')
-  if (!tips.length) tips.push('任务结构挺均衡的，按推荐顺序走就行。')
+    tips.push('高塔里的专注咒语排得很密。每完成一段长咒，都让种种替你合上魔法书，喘一口气再开下一页。')
+  if (!tips.length) tips.push('今日酒单的酸甜与火候很稳。照着种种排好的杯序走，城堡钟楼会替你守住节奏。')
 
   return {
     tips,
-    comment: `${bartender.name}：${tips[0]}`,
+    comment: `${bartender.name} 为你写下今日酒单：${tips[0]}`,
   }
 }
 
@@ -130,7 +132,7 @@ export function suggestFragment(order, records, _now = new Date()) {
   // 下一项本身就是碎片任务，直接推荐顺手做掉
   if (isFragment(next)) {
     return {
-      text: `下一件「${next.title}」只要 ${next.estimatedTime} 分钟，顺手做了吧`,
+      text: `下一件「${next.title}」只要 ${formatDuration(next.estimatedTime)}，顺手做了吧`,
       taskId: next.id,
     }
   }
@@ -138,7 +140,7 @@ export function suggestFragment(order, records, _now = new Date()) {
   // 下一项是深度任务，推荐在它之前插一条碎片任务
   const t = fragments[0]
   return {
-    text: `做「${next.title}」前，可以插一段「${t.title}」（${t.estimatedTime} 分钟）`,
+    text: `做「${next.title}」前，可以插一段「${t.title}」（${formatDuration(t.estimatedTime)}）`,
     taskId: t.id,
   }
 }
