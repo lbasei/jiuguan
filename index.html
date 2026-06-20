@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Life Kitchen · 进化酒馆</title>
+    <!-- 首帧即浅青底，消除 dev 下样式由 JS 注入前的白闪（FOUC）；样式加载后由 body 覆盖 -->
+    <style>html{background:#EAF8F8}</style>
   </head>
   <body>
     <div id="root"></div>
