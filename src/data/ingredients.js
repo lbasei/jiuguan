@@ -6,7 +6,7 @@ export const INGREDIENTS = {
     category: 'deep_work',
     name: '深度茶底',
     emoji: '🍵',
-    color: '#6B4F2C',
+    color: '#7EDFD8',
     method: 'slow_brew', // 慢萃
     desc: '深度工作与核心任务',
   },
@@ -14,7 +14,7 @@ export const INGREDIENTS = {
     category: 'creative',
     name: '创意糖浆',
     emoji: '🍯',
-    color: '#D98A3D',
+    color: '#FFD978',
     method: 'ferment', // 发酵
     desc: '创作、构思与表达',
   },
@@ -22,7 +22,7 @@ export const INGREDIENTS = {
     category: 'communication',
     name: '沟通气泡',
     emoji: '🫧',
-    color: '#4A90C2',
+    color: '#9DD3FF',
     method: 'aerate', // 打气
     desc: '会议、讨论与消息流',
   },
@@ -30,7 +30,7 @@ export const INGREDIENTS = {
     category: 'admin',
     name: '琐事小料',
     emoji: '🧂',
-    color: '#9A9A8C',
+    color: '#F8B1D4',
     method: 'quick_mix', // 速调
     desc: '碎片任务与杂事',
   },
@@ -38,7 +38,7 @@ export const INGREDIENTS = {
     category: 'recovery',
     name: '恢复奶泡',
     emoji: '🥛',
-    color: '#E8DBC8',
+    color: '#FFF3B8',
     method: 'whip', // 打发
     desc: '休息、运动与状态恢复',
   },
@@ -46,7 +46,7 @@ export const INGREDIENTS = {
     category: 'urgent',
     name: '姜汁浓缩液',
     emoji: '🫚',
-    color: '#C24A3D',
+    color: '#FF9FBD',
     method: 'shot', // 浓缩
     desc: '紧急、截止与冲刺',
   },
@@ -54,7 +54,7 @@ export const INGREDIENTS = {
     category: 'review',
     name: '肉桂封口',
     emoji: '🍂',
-    color: '#8C5A2B',
+    color: '#9BE8B6',
     method: 'seal', // 收束
     desc: '复盘与收束',
   },

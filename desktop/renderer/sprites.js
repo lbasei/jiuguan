@@ -23,21 +23,30 @@ window.BODY = {
   rosemary: '#6F8A5B',
   ginger: '#D98A3D',
   mint: '#7FBFA6',
-  garlic: '#E0CFA0',
+  lemon: '#F3D955',
+  garlic: '#DCEBC5',
   cilantro: '#9CC15B',
 }
 
 window.NAME = {
   rosemary: '迷迭香种种',
-  ginger: '姜味种种',
+  ginger: '姜种种',
   mint: '薄荷种种',
-  garlic: '蒜香种种',
+  lemon: '柠檬种种',
+  garlic: '葱蒜种种',
   cilantro: '香菜种种',
 }
 
+window.BARTENDER_IDS = ['rosemary', 'ginger', 'mint', 'lemon', 'garlic', 'cilantro']
+
 // 美术资源映射：有真实图片的小精灵优先用图片，没有则回退到像素网格
 window.IMAGE = {
+  rosemary: '../../assets/sprites/rosemary.png',
   mint: '../../assets/sprites/mint.png',
+  lemon: '../../assets/sprites/lemon.png',
+  garlic: '../../assets/sprites/garlic.png',
+  ginger: '../../assets/sprites/ginger.png',
+  cilantro: '../../assets/sprites/cilantro.svg',
 }
 
 // 调制手法文案（不点名原料，与网页端一致）
