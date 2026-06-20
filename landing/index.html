@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Life Kitchen · 魔法酒馆 · 今日特调</title>
+  <meta name="description" content="把今天想做的事讲给种种听，它会萃取成原料、排好杯序，调成一杯属于今天的特调。这里是酒馆攻略：小精灵图鉴、原料图鉴、调配手册、酒柜藏品与玩家秘方。" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- ——————— 顶部导航 ——————— -->
+  <nav class="nav">
+    <a class="nav-brand" href="#home">Life Kitchen <small>魔法酒馆</small></a>
+    <button class="nav-toggle" aria-label="菜单" id="navToggle">☰</button>
+    <div class="nav-links" id="navLinks">
+      <a href="#home">酒馆</a>
+      <a href="#sprites">小精灵图鉴</a>
+      <a href="#ingredients">原料图鉴</a>
+      <a href="#brew">调配手册</a>
+      <a href="#cabinet">酒柜</a>
+      <a href="#wall">秘方墙</a>
+    </div>
+    <a class="nav-enter" id="navEnter" href="#">推门进店 →</a>
+  </nav>
+
+  <!-- ——————— 酒馆入口 Hero ——————— -->
+  <header class="hero" id="home">
+    <div class="hero-main">
+      <div class="hero-kicker">魔法厨房 · 今日酒馆</div>
+
+      <div class="logo" aria-label="Life Kitchen">
+        <span class="logo-hat" aria-hidden="true"></span>
+        <span class="logo-wing left" aria-hidden="true"></span>
+        <span class="logo-wing right" aria-hidden="true"></span>
+        <span class="logo-star s1" aria-hidden="true"></span>
+        <span class="logo-star s2" aria-hidden="true"></span>
+        <span class="logo-star s3" aria-hidden="true"></span>
+        <h1 class="logo-title"><span>Life</span><span>Kitchen</span></h1>
+      </div>
+
+      <p class="hero-copy">
+        推开这扇门，里头是一间会调酒的魔法厨房。<br />
+        选一只<strong>种种</strong>，把今天想做的事讲给它听——它会把每件事萃取成一味原料，
+        排好杯序、守住节奏，最后端出一杯属于今天的<strong>特调</strong>。
+      </p>
+
+      <a class="enter-spell" id="enterSpell" href="#">推门进店</a>
+      <div class="hero-sub-enter">— 进入今日酒馆，开始调你的一天 —</div>
+    </div>
+
+    <div class="hero-foot">
+      <div class="hero-bar" id="heroBar" aria-hidden="true"></div>
+      <a class="hero-scroll" href="#sprites">往下看看店里的门道<span>▾</span></a>
+    </div>
+  </header>
+
+  <!-- ——————— 小精灵图鉴 ——————— -->
+  <section class="section" id="sprites">
+    <div class="section-head">
+      <div class="section-eyebrow">BARTENDERS · 你的管理方法</div>
+      <h2 class="section-title">小精灵图鉴</h2>
+      <p class="section-desc">每只种种不是皮肤，而是一套管理方法。选谁，决定了你这一天怎么被调。形象一旦选定，全程锁定不变色。</p>
+    </div>
+    <div class="grid grid-3" id="spritesGrid"></div>
+  </section>
+
+  <!-- ——————— 原料图鉴 ——————— -->
+  <section class="section" id="ingredients">
+    <div class="section-head">
+      <div class="section-eyebrow">INGREDIENTS · 每件事 = 一味原料</div>
+      <h2 class="section-title">原料图鉴</h2>
+      <p class="section-desc">你写下的每一个待办，都会按类型萃取成七味基础原料之一。时间长短决定它在杯中的比例，精力与情绪决定它的浓度和口感。</p>
+    </div>
+    <div class="grid grid-2" id="ingredientsGrid"></div>
+  </section>
+
+  <!-- ——————— 调配手册 ——————— -->
+  <section class="section" id="brew">
+    <div class="section-head">
+      <div class="section-eyebrow">HOW IT'S MIXED · 从一句话到一杯酒</div>
+      <h2 class="section-title">调配手册</h2>
+      <p class="section-desc">同样是写 PRD，有人调出清澈的深度茶底，有人因为被消息打断而断层。一杯今日特调是这样一步步调出来的：</p>
+    </div>
+    <div class="flow" id="brewFlow"></div>
+    <div class="methods">
+      <div class="section-head" style="margin-bottom:18px;">
+        <h3 class="section-title" style="font-size:22px;">七种手法</h3>
+        <p class="section-desc">执行时，杯面会显示种种正在用的手法。</p>
+      </div>
+      <div class="grid grid-2" id="methodsGrid"></div>
+    </div>
+  </section>
+
+  <!-- ——————— 酒柜 ——————— -->
+  <section class="section" id="cabinet">
+    <div class="section-head">
+      <div class="section-eyebrow">CABINET · 今日特调藏品</div>
+      <h2 class="section-title">酒柜</h2>
+      <p class="section-desc">每一种「一天的活法」都会调出一杯不同的特调。常驻款随手可得，稀有与传说款要过对了那样的一天才解锁。</p>
+    </div>
+    <div class="grid grid-4" id="cabinetGrid"></div>
+  </section>
+
+  <!-- ——————— 秘方墙 ——————— -->
+  <section class="section" id="wall">
+    <div class="section-head">
+      <div class="section-eyebrow">RECIPES · 大家的管理秘方</div>
+      <h2 class="section-title">秘方墙</h2>
+      <p class="section-desc">种种的调法、酒馆的进化档案，和玩家们分享的私房管理方法，都贴在这面墙上。挑一条对得上今天状态的试试。</p>
+    </div>
+    <div class="recipe-wall" id="recipeWall"></div>
+    <div class="wall-share">
+      <b>有自己的私房调法？</b> 在游戏里把它喂给酒馆的进化档案，对得上别人状态时就会被推荐——你的方法，会变成别人某天的那杯特调。
+    </div>
+  </section>
+
+  <!-- ——————— 页脚 ——————— -->
+  <footer class="footer">
+    <a class="enter-spell" id="enterSpellFooter" href="#">推门进店</a>
+    <div class="footer-meta">
+      Life Kitchen · 魔法酒馆 — 用调酒的方式，管理你的一天。<br />
+      <span style="opacity:.7;">本页为攻略门面，数据与游戏本体同源。</span>
+    </div>
+  </footer>
+
+  <!-- 推门进店 · 转场动画（点击进店时播放，结束后跳转游戏） -->
+  <div class="door-transition" id="doorTransition" aria-hidden="true">
+    <div class="door-light"></div>
+    <div class="door-scene">
+      <div class="door-leaf left">
+        <span class="door-panel"></span>
+        <span class="door-window"></span>
+        <span class="door-knob"></span>
+      </div>
+      <div class="door-leaf right">
+        <span class="door-panel"></span>
+        <span class="door-window"></span>
+        <span class="door-knob"></span>
+      </div>
+    </div>
+    <div class="door-flash"></div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
