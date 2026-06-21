@@ -15,6 +15,7 @@ const petDockEl = document.getElementById('petDock')
 const petConfirmEl = document.getElementById('petConfirm')
 const timerChipEl = document.getElementById('timerChip')
 const timerTextEl = document.getElementById('timerText')
+const islandCompleteEl = document.getElementById('islandComplete')
 const animationApi = window.petAnimations?.createPetAnimations?.()
 
 let greeted = false
@@ -34,8 +35,11 @@ let countdownStartedAt = 0
 let countdownPlannedSec = 0
 let countdownLastText = ''
 let activeBrewKey = ''
+let activeIslandTodoId = ''
 let focusModeActive = false
 let ticketOpen = false
+let boardCollapsed = false
+let lastScheduleKey = ''
 
 function setLocalMode(mode) {
   petMode = mode === 'island' ? 'island' : 'normal'
@@ -48,7 +52,7 @@ function setLocalMode(mode) {
 
 function render(data) {
   stageEl.classList.remove('choosing-mode')
-  if (data.state === 'choosing' || !data.selected) {
+  if (data.state === 'choosing' && data.allowDesktopChoice) {
     cacheCustomBartender(data.customBartender)
     renderChooser(data)
     return
@@ -70,33 +74,55 @@ function render(data) {
     spriteEl.innerHTML = window.renderSprite(window.CREATURE, 9, { b: body })
     currentPetImageEl = null
   }
-  plateEl.textContent = customPet?.name || window.NAME[currentBartenderId] || '小精灵'
+  plateEl.textContent = ''
 
   const schedule = data.schedule || []
+  const scheduleKey = schedule.map((t) => `${t.id || t.title}:${t.status || 'pending'}`).join('|')
+  if (scheduleKey !== lastScheduleKey) {
+    lastScheduleKey = scheduleKey
+    boardCollapsed = false
+  }
   const pending = schedule.filter((t) => t.status !== 'completed' && t.status !== 'skipped')
   const done = schedule.filter((t) => t.status === 'completed' || t.status === 'skipped')
 
   if (data.state === 'brewing' && data.title) {
-    spriteEl.className = animationApi ? '' : 'shake'
+    spriteEl.className = animationApi ? '' : 'focus'
     animationApi?.setSpriteState(spriteEl, data, { image: currentPetImageEl })
     const act = window.ACTION[data.category] || '调制中'
     showBubble(`${escapeHtml(data.title)}<span class="act">${act}…</span>`, 0)
+    activeIslandTodoId = data.activeTodoId || pending[0]?.id || ''
+    islandCompleteEl?.classList.toggle('show', !!activeIslandTodoId)
     startCountdown(data)
+    setLocalMode('island')
+    window.pet?.setMode?.('island')
     ticketOpen = false
-    renderCounter(pending, done, false)
+    renderCounter(pending, done, false, { state: data.state, activeTodoId: activeIslandTodoId })
   } else if (data.state === 'done') {
     spriteEl.className = animationApi ? '' : 'bob'
     animationApi?.setSpriteState(spriteEl, data, { image: currentPetImageEl })
     showBubble('今日特调完成 ✦', 0)
     stopCountdown()
+    activeIslandTodoId = ''
+    islandCompleteEl?.classList.remove('show')
+    setLocalMode('normal')
+    window.pet?.setMode?.('normal')
     ticketOpen = false
-    renderCounter([], done, false)
+    renderCounter([], done, done.length > 0 && !boardCollapsed)
   } else {
     spriteEl.className = animationApi ? '' : 'bob'
     animationApi?.setSpriteState(spriteEl, data, { image: currentPetImageEl })
     if (greeted && !counterEl.classList.contains('show')) hideBubble()
     if (!focusModeActive) stopCountdown()
-    renderCounter(pending, done, ticketOpen)
+    activeIslandTodoId = ''
+    islandCompleteEl?.classList.remove('show')
+    if (!focusModeActive && petMode === 'island') {
+      setLocalMode('normal')
+      window.pet?.setMode?.('normal')
+    }
+    renderCounter(pending, done, (pending.length + done.length > 0 && !boardCollapsed) || ticketOpen, {
+      state: data.state,
+      activeTodoId: data.activeTodoId || '',
+    })
   }
 
   renderCup(done)
@@ -146,10 +172,10 @@ function paintChooser() {
   }
   spriteEl.className = animationApi ? 'choosing' : 'bob'
   animationApi?.setSpriteState(spriteEl, { state: 'choosing' }, { image: currentPetImageEl })
-  plateEl.textContent = customPet?.name || window.NAME[currentBartenderId] || '种种'
+  plateEl.textContent = ''
   cupEl.classList.remove('show')
   counterEl.classList.remove('show')
-  showBubble('<span class="summon-call">选好后确认召唤</span><span class="summon-sub">左右切换种种</span>', 0)
+  showBubble('<span class="summon-call">确认召唤</span>', 0)
 }
 
 function moveChooser(dir) {
@@ -170,12 +196,14 @@ function formatTime(sec) {
 
 function renderCountdown() {
   const elapsed = Math.max(0, Math.floor((Date.now() - countdownStartedAt) / 1000))
-  const text = formatTime(elapsed)
+  const isOver = countdownPlannedSec > 0 && elapsed > countdownPlannedSec
+  const remaining = countdownPlannedSec > 0 ? Math.max(0, countdownPlannedSec - elapsed) : elapsed
+  const text = isOver ? `+${formatTime(elapsed - countdownPlannedSec)}` : formatTime(remaining)
   if (text !== countdownLastText) {
     countdownLastText = text
     timerTextEl.textContent = text
   }
-  timerChipEl.classList.toggle('over', countdownPlannedSec > 0 && elapsed > countdownPlannedSec)
+  timerChipEl.classList.toggle('over', isOver)
   timerChipEl.classList.add('show')
 }
 
@@ -218,37 +246,45 @@ function stopCountdown() {
   timerChipEl.classList.remove('show', 'over')
 }
 
-function renderCounter(pending, done, showIt) {
+function renderCounter(pending, done, showIt, options = {}) {
   let html = ''
   if (pending.length === 0 && done.length === 0) {
-    html = '<div class="ticket-head"><span>配方清单</span><small>空杯</small></div><div class="ingredient"><span></span><span class="ing-title">还没有待办小票</span></div>'
+    html = ''
   } else {
-    const pendingHtml = pending
-      .map(
-        (t) => `
-      <div class="ingredient" data-id="${escapeHtml(t.id)}" data-status="pending">
-        <button class="task-check" aria-label="打卡 ${escapeAttr(t.title)}"></button>
-        <span class="ing-title">${escapeHtml(t.title)}</span>
-        <span class="ing-meta">${t.estimatedTime} 分钟</span>
-      </div>`
-      )
+    const total = pending.length + done.length
+    const current = pending.find((t) => t.id === options.activeTodoId) || pending[0]
+    const progressHtml = Array.from({ length: total })
+      .map((_, index) => {
+        const cls = index < done.length ? 'done' : index === done.length ? 'current' : ''
+        return `<span class="${cls}" aria-hidden="true"></span>`
+      })
       .join('')
-    const doneHtml = done
-      .map(
-        (t) => `
-      <div class="ingredient done" data-id="${escapeHtml(t.id)}" data-status="done">
+    const currentHtml = current
+      ? `
+      <div class="ingredient current" data-id="${escapeHtml(current.id)}" data-status="pending">
+        <span class="task-step">当前这一项</span>
+        <span class="ing-title">${escapeHtml(current.title)}</span>
+        <span class="ing-meta">${current.estimatedTime} 分钟</span>
+        <button class="task-start" data-action="start" aria-label="开始 ${escapeAttr(current.title)}">开始</button>
+      </div>`
+      : `
+      <div class="ingredient done-all">
         <span class="task-check" aria-hidden="true"></span>
-        <span class="ing-title">${escapeHtml(t.title)}</span>
-        <span class="ing-meta">已打卡</span>
+        <span class="ing-title">这一杯已经调完</span>
+        <span class="ing-meta">可以出杯</span>
       </div>`
-      )
-      .join('')
+    const lastDone = done[done.length - 1]
     html = `
-      <div class="ticket-head"><span>配方清单</span><small>${done.length}/${pending.length + done.length}</small></div>
-      ${pendingHtml}${doneHtml}
-      <div class="ticket-actions"><button data-action="finalize">生成饮品</button></div>`
+      <div class="ticket-head"><span>To Do List</span><small>${done.length}/${pending.length + done.length}</small></div>
+      <div class="ticket-progress">${progressHtml}</div>
+      ${currentHtml}
+      <div class="ticket-actions">
+        ${lastDone ? `<button data-action="undo" data-id="${escapeAttr(lastDone.id)}">撤销上一项</button>` : ''}
+        <button data-action="finalize">${pending.length === 0 ? '生成饮品' : '暂存酒单'}</button>
+      </div>`
   }
 
+  counterEl.dataset.hasTasks = pending.length + done.length > 0 ? '1' : '0'
   if (html === lastCounterHtml) {
     counterEl.classList.toggle('show', showIt)
     return
@@ -257,29 +293,33 @@ function renderCounter(pending, done, showIt) {
   counterEl.innerHTML = html
   counterEl.classList.toggle('show', showIt)
 
-  counterEl.querySelectorAll('.ingredient[data-status="pending"] .task-check').forEach((button) => {
-    const el = button.closest('.ingredient')
+  counterEl.querySelectorAll('.ingredient[data-status="pending"]').forEach((el) => {
     el.addEventListener('click', (e) => {
       e.stopPropagation()
     })
+  })
+  counterEl.querySelectorAll('[data-action="start"]').forEach((button) => {
     button.addEventListener('click', (e) => {
       e.stopPropagation()
-      const id = el.dataset.id
+      const id = button.closest('.ingredient')?.dataset.id
       if (!id) return
-      // 视觉：原料飞入杯中
-      el.classList.add('done')
-      cupEl.classList.remove('pour-flash')
-      void cupEl.offsetWidth // 触发重绘
-      cupEl.classList.add('pour-flash')
-      animationApi?.pourIngredient(el)
-      animationApi?.flashCup(cupEl)
-      window.pet?.sendAction?.({ type: 'complete', todoId: id, completedAt: Date.now() })
+      button.textContent = '调配中'
+      button.disabled = true
+      window.pet?.sendAction?.({ type: 'start', todoId: id, startedAt: Date.now() })
+      showBubble('开始调配 ✦', 900)
     })
   })
   counterEl.querySelector('[data-action="finalize"]')?.addEventListener('click', (e) => {
     e.stopPropagation()
     window.pet?.sendAction?.({ type: 'finalize', requestedAt: Date.now() })
     showBubble('准备出杯 ✦', 1200)
+  })
+  counterEl.querySelector('[data-action="undo"]')?.addEventListener('click', (e) => {
+    e.stopPropagation()
+    const id = e.currentTarget?.dataset?.id
+    if (!id) return
+    window.pet?.sendAction?.({ type: 'undo', todoId: id, requestedAt: Date.now() })
+    showBubble('撤回上一项', 900)
   })
 }
 
@@ -368,16 +408,19 @@ function openReveal() {
 function confirmChooser() {
   window.pet?.selectBartender?.(currentBartenderId)
   playMagicFx('summon')
-  showBubble(`${window.NAME[currentBartenderId] || '种种'} 已上岗 ✦`, 1600)
+  showBubble('已上岗 ✦', 1000)
   lastState = 'idle'
+  stageEl.classList.remove('choosing-mode')
 }
 function toggleTicket() {
   if (lastState === 'choosing') return false
-  const hasMenu = lastCounterHtml && lastCounterHtml.includes('ticket-head')
+  const hasMenu = counterEl.dataset.hasTasks === '1' && lastCounterHtml.includes('ticket-head')
   if (!hasMenu) return false
-  ticketOpen = !ticketOpen
+  const isOpen = counterEl.classList.contains('show')
+  boardCollapsed = isOpen
+  ticketOpen = !isOpen
   counterEl.classList.toggle('show', ticketOpen)
-  if (ticketOpen) showBubble('今日小票已展开', 900)
+  if (ticketOpen) showBubble('看板已展开', 900)
   return true
 }
 function patPet() {
@@ -507,6 +550,19 @@ petDockEl?.addEventListener('click', (e) => {
   e.stopPropagation()
   enterFocusClock()
 })
+islandCompleteEl?.addEventListener('click', (e) => {
+  e.stopPropagation()
+  if (!activeIslandTodoId) return
+  const id = activeIslandTodoId
+  activeIslandTodoId = ''
+  islandCompleteEl.classList.remove('show')
+  cupEl.classList.remove('pour-flash')
+  void cupEl.offsetWidth
+  cupEl.classList.add('pour-flash')
+  animationApi?.flashCup(cupEl)
+  window.pet?.sendAction?.({ type: 'complete', todoId: id, completedAt: Date.now() })
+  showBubble('这一项完成 ✦', 900)
+})
 stageEl.addEventListener('pointerdown', startManualDrag, true)
 stageEl.addEventListener('click', (e) => {
   if (suppressNextClick) {
@@ -521,7 +577,7 @@ stageEl.addEventListener('click', (e) => {
 
 // 初始 idle + 启动打招呼（4 秒），方便你确认它真的在
 render({ state: 'idle', bartenderId: 'rosemary' })
-showBubble('今天我来 ✦', 4000)
+showBubble('', 1)
 setTimeout(() => (greeted = true), 4000)
 
 if (window.pet) window.pet.onState(render)

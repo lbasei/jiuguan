@@ -11,6 +11,23 @@ import { buildReviewCard } from '../engine/review.js'
 const STORAGE_KEY = 'life-kitchen-v2'
 const StoreCtx = createContext(null)
 
+function makeGuestId() {
+  return `guest-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`
+}
+
+function normalizeProfile(profile = {}) {
+  const name = String(profile.name || profile.displayName || '').trim().slice(0, 24)
+  return {
+    id: profile.id || makeGuestId(),
+    name,
+    displayName: name,
+    gender: ['male', 'female', 'neutral'].includes(profile.gender) ? profile.gender : 'neutral',
+    locationLabel: String(profile.locationLabel || profile.locationName || '').trim().slice(0, 36),
+    coords: profile.coords || null,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
 // 流程：选小精灵 → 倒待办 → 小精灵优化 → 执行 → 揭晓
 // 原料/茶底/特调全程隐藏，直到 reveal 才揭晓（保留惊喜）。
 export const STEPS = ['bartender', 'todos', 'optimize', 'execute', 'reveal']
@@ -29,6 +46,8 @@ const initial = {
   strategy: 'deep_first',
   order: [],
   drinkName: '',
+  drinkVessel: 'highball',
+  customVesselLabel: '',
   judge: { warnings: [], comment: '' }, // 揭晓阶段用（含原料名）
   advice: { tips: [], comment: '' }, // 优化阶段用（不剧透原料）
   manualSorted: false,
@@ -36,6 +55,7 @@ const initial = {
   records: {}, // todoId -> { status, actualTime, mood }
   reviewCard: null,
   cellar: [], // 本地酒柜：保存生成过的今日特调报告
+  userProfile: null,
   today: new Date().toISOString().slice(0, 10),
 }
 
@@ -73,6 +93,9 @@ function reducer(state, action) {
     case 'SET_ASSISTANT_MODE':
       return { ...state, assistantMode: action.mode || 'daily' }
 
+    case 'SET_USER_PROFILE':
+      return { ...state, userProfile: normalizeProfile({ ...(state.userProfile || {}), ...(action.profile || {}) }) }
+
     case 'ADD_CUSTOM_BARTENDER': {
       const bartender = action.bartender
       if (!bartender?.id) return state
@@ -87,7 +110,15 @@ function reducer(state, action) {
     }
 
     case 'SET_TODOS':
-      return recompute({ ...state, todos: action.todos, assistantMode: action.mode || state.assistantMode, sessionNote: action.note || state.sessionNote })
+      return recompute({
+        ...state,
+        todos: action.todos,
+        records: {},
+        activeId: null,
+        reviewCard: null,
+        assistantMode: action.mode || state.assistantMode,
+        sessionNote: action.note || state.sessionNote,
+      })
 
     case 'UPDATE_TODO': {
       const todos = state.todos.map((t) => (t.id === action.id ? { ...t, ...action.patch } : t))
@@ -126,11 +157,20 @@ function reducer(state, action) {
     case 'SET_ORDER':
       return { ...state, order: action.order, manualSorted: true, strategy: 'manual' }
 
+    case 'SET_VESSEL':
+      return { ...state, drinkVessel: action.vessel || 'highball', customVesselLabel: action.label ?? state.customVesselLabel }
+
     case 'SET_RECORD':
       return {
         ...state,
         records: { ...state.records, [action.todoId]: { ...state.records[action.todoId], ...action.record } },
       }
+
+    case 'CLEAR_RECORD': {
+      const records = { ...state.records }
+      delete records[action.todoId]
+      return { ...state, records }
+    }
 
     case 'FINALIZE': {
       const bartender = getBartender(state.bartenderId, state.customBartenders)
@@ -160,6 +200,9 @@ function reducer(state, action) {
         drinkName: finalDrinkName,
         records,
       })
+      reviewCard.vessel = state.drinkVessel || 'highball'
+      reviewCard.customVesselLabel = state.customVesselLabel || ''
+      reviewCard.userProfile = state.userProfile
       return { ...state, reviewCard, ingredients: finalIngredients, recipe: finalRecipe, drinkName: finalDrinkName, step: 'reveal' }
     }
 
@@ -169,6 +212,7 @@ function reducer(state, action) {
         ...state.reviewCard,
         id: `${state.reviewCard.date}-${state.reviewCard.drinkName}`,
         savedAt: new Date().toISOString(),
+        userProfile: state.userProfile,
       }
       const cellar = [saved, ...state.cellar.filter((item) => item.id !== saved.id)].slice(0, 12)
       return { ...state, cellar }
@@ -180,6 +224,7 @@ function reducer(state, action) {
         bartenderId: state.lockedBartenderId || state.bartenderId,
         lockedBartenderId: state.lockedBartenderId,
         cellar: state.cellar,
+        userProfile: state.userProfile,
         customBartenders: state.customBartenders,
         today: new Date().toISOString().slice(0, 10),
       }

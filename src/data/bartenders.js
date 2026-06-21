@@ -6,7 +6,7 @@ import mintSpriteUrl from '../../assets/sprites/mint.png'
 import lemonSpriteUrl from '../../assets/sprites/lemon.png'
 import garlicSpriteUrl from '../../assets/sprites/garlic.png'
 import gingerSpriteUrl from '../../assets/sprites/ginger.png'
-import cilantroSpriteUrl from '../../assets/sprites/cilantro.svg'
+import cilantroSpriteUrl from '../../assets/sprites/cilantro.png'
 
 export const BARTENDERS = [
   {
@@ -15,11 +15,11 @@ export const BARTENDERS = [
     plant: 'rosemary',
     emoji: '🌿',
     image: rosemarySpriteUrl,
-    style: '老派主厨型',
-    fit: '计划乱成一锅粥、 deadline 压顶的日子',
+    style: '老派、挑剔、很会控场',
+    fit: '事情堆在一起、你需要有人替你拍桌定顺序的时候',
     strategy: 'deep_first', // 高优先级前置，先主线后碎片
-    reminderTone: '直接、不绕弯',
-    blurb: '先把主茶底熬稳，再撒碎料。顺序错了，整杯都会散。',
+    reminderTone: '直说重点',
+    blurb: '她会先皱眉看一眼清单，然后把最要紧的那件事推到你面前。',
   },
   {
     id: 'ginger',
@@ -27,11 +27,11 @@ export const BARTENDERS = [
     plant: 'ginger',
     emoji: '🫚',
     image: gingerSpriteUrl,
-    style: '点火推进型',
-    fit: '拖着不想开始、容易卡住的早晨',
+    style: '热心、急性子、爱催开局',
+    fit: '明明知道要做什么，但身体迟迟不肯动的时候',
     strategy: 'ignite_first', // 先做 10 分钟启动任务
-    reminderTone: '催促但带点暖意',
-    blurb: '别想着一次做完，先开火。锅热了，后面自然顺。',
+    reminderTone: '热乎乎地催你',
+    blurb: '他不会讲大道理，只会把第一步缩到很小，催你先动一下。',
   },
   {
     id: 'mint',
@@ -39,11 +39,11 @@ export const BARTENDERS = [
     plant: 'mint',
     emoji: '🌱',
     image: mintSpriteUrl,
-    style: '温柔缓冲型',
-    fit: '疲惫、焦虑、能量低的日子',
+    style: '慢吞吞、会照顾人、有点撒娇',
+    fit: '累到不想被催，但又希望今天别完全散掉的时候',
     strategy: 'recovery_buffer', // 高强度任务后加入恢复
-    reminderTone: '轻、不催',
-    blurb: '累了就垫一层奶泡，别把自己熬干。',
+    reminderTone: '轻声提醒',
+    blurb: '她会把任务说得软一点，提醒你喝水、喘口气，再继续。',
   },
   {
     id: 'lemon',
@@ -51,11 +51,11 @@ export const BARTENDERS = [
     plant: 'lemon',
     emoji: '🍋',
     image: lemonSpriteUrl,
-    style: '清醒吐槽型',
-    fit: '脑子发黏、需要一点酸味把注意力拧回来的时候',
+    style: '嘴快、清醒、偶尔吐槽',
+    fit: '脑子糊住、想找个人把话说亮一点的时候',
     strategy: 'ignite_first',
-    reminderTone: '犀利、轻快',
-    blurb: '先挤一点酸，醒醒神。别磨叽，今天要爽快开局。',
+    reminderTone: '短句吐槽',
+    blurb: '她会直接戳破你绕来绕去的地方，然后丢给你一个清爽的开头。',
   },
   {
     id: 'garlic',
@@ -63,11 +63,11 @@ export const BARTENDERS = [
     plant: 'garlic',
     emoji: '🧄',
     image: garlicSpriteUrl,
-    style: '边界守护型',
-    fit: '消息不断、被打断到崩溃的日子',
+    style: '护短、警觉、很会挡人',
+    fit: '消息一直弹、别人老来插队、你快被切碎的时候',
     strategy: 'batch_admin', // 合并碎片任务，保护深度块
-    reminderTone: '冷静、坚定',
-    blurb: '先把边界立住。该挡的挡掉，该集中处理的集中处理。',
+    reminderTone: '冷静但不让步',
+    blurb: '她会帮你把门关上，留出一段不被打断的时间。',
   },
   {
     id: 'cilantro',
@@ -75,11 +75,11 @@ export const BARTENDERS = [
     plant: 'cilantro',
     emoji: '🌾',
     image: cilantroSpriteUrl,
-    style: '随性入门型',
-    fit: '不想被管太死、对计划有抗拒感的时候',
+    style: '随性、爱商量、有点小古怪',
+    fit: '你不想被计划绑住，只想先找个舒服入口的时候',
     strategy: 'light_first', // 从轻任务进入，允许调整顺序
-    reminderTone: '商量、随和',
-    blurb: '从轻的开始，顺序随你心情调。',
+    reminderTone: '像朋友一样商量',
+    blurb: '他不会逼你按表走，会先挑一件顺手的事陪你试试。',
   },
 ]
 

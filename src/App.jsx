@@ -2,6 +2,7 @@ import { useStore, STEPS } from './store/store.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { pushPetState, startActionPoll, stopActionPoll, onPetAction } from './engine/petBridge.js'
 import IntroPage from './pages/IntroPage.jsx'
+import GuestProfilePage from './pages/GuestProfilePage.jsx'
 import LoadingPage from './pages/LoadingPage.jsx'
 import BartenderPage from './pages/BartenderPage.jsx'
 import TodoPage from './pages/TodoPage.jsx'
@@ -34,6 +35,10 @@ export default function App() {
   const showFlow = state.step !== 'bartender'
   const selectedCustomBartender = state.customBartenders?.find((b) => b.id === state.lockedBartenderId)
 
+  const openGuestProfile = () => {
+    setIntroStage('guest')
+  }
+
   const startIntro = () => {
     dispatch({ type: 'GO', step: 'bartender' })
     setIntroStage('loading')
@@ -44,6 +49,11 @@ export default function App() {
     if (introStage === 'app' && state.step === 'bartender') {
       bartenderReadyAt.current = Date.now()
     }
+  }, [introStage, state.step])
+
+  useEffect(() => {
+    if (introStage !== 'app') return
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
   }, [introStage, state.step])
 
   // 一旦选定小精灵，在静态页面也保持桌宠形象同步，避免它回到默认色。
@@ -74,11 +84,12 @@ export default function App() {
     }
   }, [dispatch, introStage, state.step, state.customBartenders])
 
-  if (introStage === 'intro') return <IntroPage onStart={startIntro} />
+  if (introStage === 'intro') return <IntroPage onStart={openGuestProfile} />
+  if (introStage === 'guest') return <GuestProfilePage onStart={startIntro} />
   if (introStage === 'loading') return <LoadingPage />
 
   return (
-    <div className="app">
+    <div className={`app step-${state.step}`}>
       {showFlow && (
         <div className="topbar">
           <div className="brand">

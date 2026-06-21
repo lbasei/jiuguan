@@ -3,6 +3,7 @@
 // 桌宠没开也不报错——fire-and-forget，失败静默。
 
 const PET_URL = 'http://localhost:7878/state'
+const PET_START_URL = '/api/pet/start'
 
 let lastOk = false
 let lastPayload = { state: 'idle', bartenderId: 'rosemary' }
@@ -32,9 +33,30 @@ export async function pushPetState(payload) {
       body: JSON.stringify(lastPayload),
     })
     setOk(true)
+    return true
   } catch {
     setOk(false)
+    return false
   }
+}
+
+export async function startDesktopPet() {
+  try {
+    const res = await fetch(PET_START_URL, { method: 'POST' })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+export async function ensurePetState(payload, retries = 5) {
+  if (await pushPetState(payload)) return true
+  await startDesktopPet()
+  for (let i = 0; i < retries; i += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    if (await pushPetState(payload)) return true
+  }
+  return false
 }
 
 export const petBrew = (p) => pushPetState({ state: 'brewing', ...p })

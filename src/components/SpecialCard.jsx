@@ -14,6 +14,20 @@ const MODE_LABELS = {
   long_goal: '长期酿造',
 }
 
+const DESSERT_VESSELS = new Set(['cake', 'tart', 'snack'])
+
+function honorific(profile = {}) {
+  if (profile.gender === 'male') return '先生'
+  if (profile.gender === 'female') return '小姐'
+  return '旅人'
+}
+
+function guestLine(profile = {}) {
+  const place = profile.locationLabel || profile.locationName || '远方'
+  const name = profile.name || profile.displayName || '无名'
+  return `To 来自${place}的${name}${honorific(profile)}`
+}
+
 function drinkTone(layers) {
   const cool = layers.filter((layer) => COOL_CATEGORIES.has(layer.category)).length
   const warm = layers.filter((layer) => WARM_CATEGORIES.has(layer.category)).length
@@ -35,59 +49,94 @@ function harmonizeDrink(layers) {
   const tone = drinkTone(layers)
   const palette =
     tone === 'cool'
-      ? { garnish: '#9BE8B6', garnishAlt: '#9DD3FF', straw: '#7EDFD8', rim: '#8BCFD2' }
+      ? { garnish: '#BDEFD0', garnishAlt: '#BFE8FF', straw: '#8FE4DF', rim: '#9AD7DA', wash: '#DFF7F3' }
       : tone === 'warm'
-        ? { garnish: '#FFD978', garnishAlt: '#F8B1D4', straw: '#FF9FBD', rim: '#EFCB72' }
-        : { garnish: '#FFD978', garnishAlt: '#9BE8B6', straw: '#7EDFD8', rim: '#A8CFE0' }
+        ? { garnish: '#FFE29A', garnishAlt: '#FFC7DB', straw: '#F8AFC8', rim: '#EFD48D', wash: '#FFF1C7' }
+        : { garnish: '#FFE29A', garnishAlt: '#BDEFD0', straw: '#8FE4DF', rim: '#A8DDE6', wash: '#EAF8F8' }
   return {
     tone,
     palette,
     layers: layers.map((layer) => ({
       ...layer,
-      visualColor: tone === 'cool' && WARM_CATEGORIES.has(layer.category) ? colorMix(layer.color, '#78B9C8', 0.34) : layer.color,
+      visualColor: colorMix(
+        tone === 'cool' && WARM_CATEGORIES.has(layer.category) ? colorMix(layer.color, '#78B9C8', 0.28) : layer.color,
+        palette.wash,
+        0.42,
+      ),
     })),
   }
 }
 
-function ResultDrink({ recipe, isEmptyCup }) {
+function drinkDecor(recipe = []) {
+  const cats = new Set(recipe.map((item) => item.category))
+  if (cats.has('recovery')) return 'pearls'
+  if (cats.has('creative')) return 'flowers'
+  if (cats.has('review')) return 'leaves'
+  return 'sparkles'
+}
+
+function bartenderGarnish(bartender = {}) {
+  const key = `${bartender.id || ''} ${bartender.plant || ''} ${bartender.name || ''}`.toLowerCase()
+  if (/mint|薄荷/.test(key)) return 'mint'
+  if (/garlic|葱|蒜/.test(key)) return 'garlic'
+  if (/ginger|姜/.test(key)) return 'ginger'
+  if (/cilantro|香菜/.test(key)) return 'cilantro'
+  if (/osmanthus|桂花/.test(key)) return 'osmanthus'
+  if (/chili|pepper|辣椒/.test(key)) return 'chili'
+  if (/lemon|柠檬/.test(key)) return 'lemon'
+  if (/rosemary|迷迭香/.test(key)) return 'rosemary'
+  return 'spark'
+}
+
+function ResultDrink({ recipe, isEmptyCup, vessel = 'highball', bartender }) {
   const rawLayers = isEmptyCup ? [] : getRecipeVolumeLayers(recipe).slice(0, 5)
   const drink = harmonizeDrink(rawLayers)
+  const decor = drinkDecor(recipe)
+  const garnish = bartenderGarnish(bartender)
+  const isDessert = DESSERT_VESSELS.has(vessel)
 
   return (
-    <div
-      className={`result-drink tone-${drink.tone} ${isEmptyCup ? 'is-empty' : ''}`}
-      aria-label="今日生成饮品"
-      style={{
-        '--drink-garnish': drink.palette.garnish,
-        '--drink-garnish-alt': drink.palette.garnishAlt,
-        '--drink-straw': drink.palette.straw,
-        '--drink-rim': drink.palette.rim,
-      }}
-    >
-      <div className="drink-garnish">
-        <span />
-        <span />
-      </div>
-      <div className="drink-straw" aria-hidden="true" />
-      <div className="drink-glass">
-        <div className="drink-liquid">
-          {drink.layers.map((layer, index) => (
-            <span
-              key={layer.category}
-              className={`drink-layer layer-${index}`}
-              style={{ '--drink-color': layer.visualColor, '--drink-height': `${layer.heightPercent}%` }}
-              title={`${layer.name} ${layer.volumeLabel}`}
-            >
-              <i />
-            </span>
-          ))}
+    <div className={`result-stage decor-${decor}`}>
+      <span className="stage-ornament o1" aria-hidden="true" />
+      <span className="stage-ornament o2" aria-hidden="true" />
+      <span className="stage-ornament o3" aria-hidden="true" />
+      <span className="stage-ornament o4" aria-hidden="true" />
+      <div
+        className={`result-drink tone-${drink.tone} vessel-${vessel} ${isDessert ? 'is-dessert' : ''} garnish-${garnish} ${isEmptyCup ? 'is-empty' : ''}`}
+        aria-label={isDessert ? '今日生成甜品' : '今日生成饮品'}
+        style={{
+          '--drink-garnish': drink.palette.garnish,
+          '--drink-garnish-alt': drink.palette.garnishAlt,
+          '--drink-straw': drink.palette.straw,
+          '--drink-rim': drink.palette.rim,
+        }}
+      >
+        <div className="drink-garnish" aria-hidden="true">
+          <span className="garnish-main" />
+          <span className="garnish-accent" />
+          <span className="garnish-extra" />
         </div>
-        <div className="drink-ice one" aria-hidden="true" />
-        <div className="drink-ice two" aria-hidden="true" />
-        <div className="drink-ice three" aria-hidden="true" />
+        <div className="drink-straw" aria-hidden="true" />
+        <div className="drink-glass">
+          <div className="drink-liquid">
+            {drink.layers.map((layer, index) => (
+              <span
+                key={layer.category}
+                className={`drink-layer layer-${index}`}
+                style={{ '--drink-color': layer.visualColor, '--drink-height': `${layer.heightPercent}%` }}
+                title={`${layer.name} ${layer.volumeLabel}`}
+              >
+                <i />
+              </span>
+            ))}
+          </div>
+          <div className="drink-ice one" aria-hidden="true" />
+          <div className="drink-ice two" aria-hidden="true" />
+          <div className="drink-ice three" aria-hidden="true" />
+        </div>
+        <div className="drink-stem" aria-hidden="true" />
+        <div className="drink-foot" aria-hidden="true" />
       </div>
-      <div className="drink-stem" aria-hidden="true" />
-      <div className="drink-foot" aria-hidden="true" />
     </div>
   )
 }
@@ -98,6 +147,19 @@ function StarRating({ stars = 0 }) {
       {Array.from({ length: 5 }).map((_, index) => (
         <span key={index} className={index < stars ? 'on' : ''} />
       ))}
+    </div>
+  )
+}
+
+function AdditiveCup({ tip, index }) {
+  const tones = ['mint', 'gold', 'pink']
+  const fill = Math.max(24, Math.min(92, Math.round((tip.confidence || 0.5) * 100)))
+  return (
+    <div className={`additive-cup ${tones[index % tones.length]}`} style={{ '--fill': `${fill}%` }}>
+      <i aria-hidden="true">
+        <b />
+      </i>
+      <span>{tip.name}</span>
     </div>
   )
 }
@@ -144,6 +206,100 @@ function ManagementTuning({ items = [] }) {
   )
 }
 
+function MethodRelationChart({ relation }) {
+  const points = relation?.points || []
+  if (!points.length) return null
+  const icons = ['base', 'time', 'rest']
+  return (
+    <div className="method-chart" aria-label={relation.title}>
+      <div className="chart-title">{relation.title}</div>
+      <div className="chart-lanes">
+        {points.slice(0, 3).map((point, index) => (
+          <div className={`chart-lane ${icons[index]}`} key={point}>
+            <i />
+            <span>{point}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SpecialRecipeBadge({ recipe }) {
+  if (!recipe) return null
+  return (
+    <div className="special-badge">
+      <i aria-hidden="true" />
+      <div>
+        <span>{recipe.title}</span>
+        {recipe.fit && <em>{recipe.fit}</em>}
+      </div>
+    </div>
+  )
+}
+
+function ReviewGaugeBoard({ charts = [] }) {
+  if (!charts.length) return null
+  return (
+    <div className="review-gauge-board" aria-label="今日复盘图表">
+      {charts.map((chart) => (
+        <div className={`review-gauge tone-${chart.tone || 'mint'}`} key={chart.key}>
+          <div>
+            <strong>{chart.value}%</strong>
+            <span>{chart.label}</span>
+          </div>
+          <i>
+            <b style={{ '--value': `${chart.value}%` }} />
+          </i>
+          <em>{chart.detail}</em>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function BartenderAdviceCard({ advice, bartender }) {
+  if (!advice) return null
+  return (
+    <div className="bartender-advice-card">
+      <span className="advice-avatar" aria-hidden="true">
+        {bartender?.image && <img src={bartender.image} alt="" />}
+      </span>
+      <div>
+        <strong>{advice.title}</strong>
+        <p>{advice.line}</p>
+        <div className="advice-actions">
+          {(advice.actions || []).map((action) => (
+            <span key={action}>{action}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function HabitMemoryCard({ memory }) {
+  if (!memory) return null
+  return (
+    <div className="habit-memory-card">
+      <div className="habit-palette" aria-hidden="true">
+        {(memory.palette?.length ? memory.palette : ['#8FE4DF', '#FFF3C4', '#F8AFC8']).map((color, index) => (
+          <span key={`${color}-${index}`} style={{ background: color }} />
+        ))}
+      </div>
+      <div>
+        <strong>{memory.title}</strong>
+        <div className="habit-chips">
+          {(memory.chips || []).map((chip) => (
+            <span key={chip}>{chip}</span>
+          ))}
+        </div>
+        <p>{memory.note}</p>
+      </div>
+    </div>
+  )
+}
+
 export default function SpecialCard({ card, bartender, reportOpen = false, onGenerateReport }) {
   const [sharing, setSharing] = useState(false)
   const [shareMessage, setShareMessage] = useState('')
@@ -154,6 +310,7 @@ export default function SpecialCard({ card, bartender, reportOpen = false, onGen
   const evoTips = report.evoTips || []
   const specialRecipe = report.specialRecipe
   const managementRelation = report.managementRelation
+  const profile = card.userProfile || {}
   const generatePoster = async () => {
     if (sharing) return
     setSharing(true)
@@ -170,15 +327,22 @@ export default function SpecialCard({ card, bartender, reportOpen = false, onGen
   return (
     <div className={`special-card settlement-card ${isEmptyCup ? 'empty-cup-card' : ''} ${reportOpen ? 'report-open' : ''}`}>
       <div className="result-frame">
-        <div className="result-kicker">DRINK RESULT</div>
-        <div className="result-title">饮品生成</div>
-        <div className="result-subtitle">今晚的调配结算单</div>
+        <div className="result-ribbon">
+          <span />
+          <strong>Today's Special</strong>
+          <span />
+        </div>
+        <div className="result-title">{card.drinkName}</div>
+      <div className="result-signature">
+          <span>From {card.bartender}</span>
+          <i />
+          <span>{guestLine(profile)}</span>
+        </div>
       </div>
 
-      <ResultDrink recipe={card.recipe || []} isEmptyCup={isEmptyCup} />
+      <ResultDrink recipe={card.recipe || []} isEmptyCup={isEmptyCup} vessel={card.vessel || 'highball'} bartender={bartender} />
 
-      <div className="dname">{card.drinkName}</div>
-      <div className="mode-badge">{MODE_LABELS[card.mode] || '今日调酒'}记录</div>
+      <div className="dname">{MODE_LABELS[card.mode] || '今日调酒'} · {DESSERT_VESSELS.has(card.vessel) ? '出炉' : '出杯'}</div>
       <div className="bartender-badge-line">
         <span className="bartender-mini">
           {bartender?.image && <img src={bartender.image} alt="" />}
@@ -188,7 +352,6 @@ export default function SpecialCard({ card, bartender, reportOpen = false, onGen
 
       <div className="score-board score-board-hero">
         <StarRating stars={score.stars} />
-        <div className="score-soft">今日星级 · {score.stars || 0}/5</div>
       </div>
 
       {!reportOpen && (
@@ -215,35 +378,21 @@ export default function SpecialCard({ card, bartender, reportOpen = false, onGen
               {shareMessage && <small className="poster-share-status">{shareMessage}</small>}
             </div>
           )}
+          <ReviewGaugeBoard charts={report.progressCharts} />
+          <BartenderAdviceCard advice={report.bartenderAdvice} bartender={bartender} />
           <ManagementTuning items={report.flavorTuning} />
-          <ScoreBreakdown parts={score.parts} />
-
-      <div className="metrics">
-        <div className="m">
-          <div className="num">{Math.round(card.completionRate * 100)}%</div>
-          <div className="lab">完成率</div>
-        </div>
-        <div className="m">
-          <div className="num">{Math.round(card.timeAccuracy * 100)}%</div>
-          <div className="lab">时间准确度</div>
-        </div>
-        <div className="m">
-          <div className="num">{score.parts?.balance ?? 0}</div>
-          <div className="lab">收口分</div>
-        </div>
-      </div>
 
       <div style={{ margin: '6px 0 14px' }}>
         {isEmptyCup ? (
-          <div className="empty-cup-note">杯底还没有完成的心事片段，所以没有形成饮品配方。</div>
+          <div className="empty-cup-note">今天还没有完成的心事片段，所以暂时没有形成成品配方。</div>
         ) : (
           <RecipeBar recipe={card.recipe} />
         )}
       </div>
       {!isEmptyCup && (
-        <div className="result-details">
+        <div className="result-details compact-result-details">
           <div>
-            <strong>今日战利品</strong>
+            <strong>入杯片段</strong>
             {done.length ? (
               <ul className="loot-grid">
                 {done.map((item) => (
@@ -264,44 +413,26 @@ export default function SpecialCard({ card, bartender, reportOpen = false, onGen
               <span>主味：{card.heaviest}</span>
               <span>缺口：{card.missing}</span>
             </div>
+            <SpecialRecipeBadge recipe={specialRecipe} />
           </div>
         </div>
       )}
 
-      {specialRecipe && (
-        <div className="special-recipe">
-          <div className="special-recipe-head">
-            <span>种种提取的方案</span>
-            {specialRecipe.fit && <em>{specialRecipe.fit}</em>}
-          </div>
-          <strong>{specialRecipe.title}</strong>
-          <p>{specialRecipe.method}</p>
-          <small>{specialRecipe.summary}</small>
-        </div>
-      )}
-
-      {managementRelation?.points?.length > 0 && (
-        <div className="method-relation">
-          <strong>{managementRelation.title}</strong>
-          {managementRelation.points.map((point) => (
-            <p key={point}>{point}</p>
-          ))}
-        </div>
-      )}
+      <MethodRelationChart relation={managementRelation} />
+      <HabitMemoryCard memory={report.habitMemory} />
 
       {!!evoTips.length && (
         <div className="evo-result">
-          <strong>EVO Map 加料槽</strong>
-          {evoTips.map((tip) => (
-            <div className="evo-chip" key={tip.id}>
-              <span>{tip.name}</span>
-              <small>{tip.effect} · 匹配度 {Math.round(tip.confidence * 100)}%</small>
-            </div>
-          ))}
+          <strong>加料槽</strong>
+          <div className="additive-cup-grid">
+            {evoTips.slice(0, 3).map((tip, index) => (
+              <AdditiveCup key={tip.id} tip={tip} index={index} />
+            ))}
+          </div>
         </div>
       )}
 
-      <div className="warn" style={{ textAlign: 'left' }}>明日加料：{card.suggestion}</div>
+      <div className="next-chip">明日加料 · {card.suggestion}</div>
         </>
       )}
     </div>

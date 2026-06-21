@@ -55,11 +55,12 @@ async function callOpenAIPlanner(text) {
 1. 只把"需要做的事 / 已承诺的事 / 要回复、写、讨论、整理、运动、复盘、购买、提交、处理"列入 todos。
 2. 情绪、抱怨、背景、语气词不能单独成为 todo，例如"我好烦""今天很乱""有点累"。这些只能影响 emotionalLoad 或 ignoredContext。
 3. 不要漏掉隐性任务：例如"设定表一直挂在心上"应抽成"整理/推进设定表"；"老师那边的信息"应抽成"回复老师信息"。
-4. 如果一个句子里既有情绪又有行动，只保留行动标题，例如"我有点累但还想运动半小时"抽成"运动半小时"。
-5. 标题要像用户能勾选的事项，不能写成情绪描述；每条标题 4-18 个汉字优先。
+4. 如果一个句子里既有情绪又有行动，只保留行动标题，例如"我有点累但还想运动半小时"抽成 title="运动"，estimatedTime=30。
+5. 标题要像用户能勾选的事项，不能写成情绪描述，也不要把"上午/下午/晚上/45分钟"写进 title；时间放 estimatedTime。
 6. 不确定但可能需要安排的内容也放进 todos，并把 confidence 降低；不要因为语气含糊就漏掉。
 7. estimatedTime 没明确给出时，结合 taskType 和复杂度估计分钟数。
-8. 参考 Evo Map 配方，但不要输出配方文字到 title：${JSON.stringify(evoMap)}。
+8. evidence 必须是触发这个任务的原话片段，用于后续校验，不要写推理过程。
+9. 参考 Evo Map 配方，但不要输出配方文字到 title：${JSON.stringify(evoMap)}。
 
 taskType 七选一：${TYPE_ENUM.join('/')}。
 只输出符合 schema 的 JSON。`
@@ -182,6 +183,29 @@ function isEmotionOnly(title) {
   return emotionWords.test(cleaned) && !actionWords.test(cleaned)
 }
 
+function stripTimeWords(title) {
+  return String(title || '')
+    .replace(/(上午|下午|晚上|中午|早上|凌晨|今晚|今天|明天|后天|周[一二三四五六日天]|星期[一二三四五六日天])\s*/g, '')
+    .replace(/\d{1,2}\s*[:：]\s*\d{1,2}/g, '')
+    .replace(/(\d{1,2}|[一二两三四五六七八九十]{1,3})点(钟)?(之前|以后|左右|前|后)?/g, '')
+    .replace(/(\d+(?:\.\d+)?)\s*(分钟|min|小时|h)/gi, '')
+    .replace(/半小时|一小时|两小时/g, '')
+}
+
+function deriveImplicitAction(fragment) {
+  const cleaned = stripTimeWords(fragment)
+    .replace(/[，。！？!?、\s]/g, '')
+    .replace(/^(我|今天|现在|其实|还是|还要|还得|想要|想把|想|需要|得|要|把|去|再|先|那个|这个)+/, '')
+    .replace(/(一直)?(挂在心上|惦记|放心不下|没弄完|没处理|没回|还没弄|还没做|卡着|卡住了?|有点卡|比较卡)$/, '')
+    .replace(/那边的?/g, '')
+  if (!cleaned) return ''
+  if (/消息|微信|邮件|私信|通知|信息/.test(cleaned)) return `回复${cleaned.replace(/信息$/, '消息')}`
+  if (/截图|资料|材料|文件|票据|报销|账单/.test(cleaned)) return `整理${cleaned}`
+  if (/表|设定|方案|文档|报告|论文|稿|页面|设计|代码|需求|项目|作品集|作业|课题/.test(cleaned)) return `推进${cleaned}`
+  if (/运动|训练|复盘|会议|讨论/.test(cleaned)) return cleaned
+  return ''
+}
+
 function isNonTaskFragment(title) {
   const cleaned = String(title || '')
     .replace(/[，。！？!?、\s]/g, '')
@@ -195,21 +219,39 @@ function isNonTaskFragment(title) {
   return !actionWords.test(cleaned) && !objectHints.test(cleaned)
 }
 
-function cleanTitle(title) {
-  return String(title || '')
+function cleanTitle(title, evidence = '') {
+  const raw = String(title || evidence || '')
+  const cleaned = stripTimeWords(raw)
     .replace(/^(我|今天|现在|其实|还是|还要|还得|想要|想把|想|需要|得|要)+/, '')
     .replace(/^(有点|特别|很|太)?(累|烦|焦虑|乱|低落|emo|没精神)(但|但是|不过|也)?/, '')
-    .replace(/(上午|下午|晚上|中午|早上|今晚|明天|后天)?\s*(\d{1,2}|[一二两三四五六七八九十]{1,3})点(钟)?(之前|以后|左右)?/g, '')
     .replace(/^(把|去|再)+/, '')
     .replace(/^(我|今天|现在|其实|还是|还要|还得|想要|想把|想|需要|得|要)+/, '')
+    .replace(/^(一件|一个|一下|点|些)+/, '')
+    .replace(/(一直)?(挂在心上|惦记|放心不下|没弄完|没处理|没回|还没弄|还没做|卡着|卡住了?)$/, '')
+    .replace(/也?(要|得|没|还没)?(回|回复)$/, '')
+    .replace(/也?(要|得|没|还没)?(找|找一下|处理|处理一下|整理|整理一下|弄|弄一下)$/, '')
+    .replace(/还没(改完|写完|做完|弄完|处理完)$/, '')
+    .replace(/(改完|写完|做完|弄完|处理完)$/, '')
+    .replace(/也$/, '')
+    .replace(/^(能|可以|最好能|最好可以)/, '')
+    .replace(/一下/g, '')
+    .replace(/那边的?/g, '')
     .trim()
+  if (/消息|微信|邮件|私信|通知|信息/.test(cleaned) && !/^(回|回复|联系)/.test(cleaned)) return `回复${cleaned.replace(/信息$/, '消息')}`
+  if (/截图|资料|材料|文件|票据|报销|账单/.test(cleaned) && !/^(整理|找|处理)/.test(cleaned)) return `整理${cleaned}`
+  if (/写完/.test(raw) && !/^(写|完成)/.test(cleaned)) return `写完${cleaned}`
+  if (/做完/.test(raw) && !/^(做|完成)/.test(cleaned)) return `做完${cleaned}`
+  if (/论文|文档|报告|稿/.test(cleaned) && /改|修改/.test(raw)) return `修改${cleaned.replace(/^(改|修改)/, '')}`
+  if (/表|设定|方案|文档|报告|论文|稿|页面|设计|代码|需求|项目|作品集|作业|课题/.test(cleaned) && !/^(推进|写|做|改|整理|讨论|设计|提交)/.test(cleaned)) return `推进${cleaned}`
+  if (cleaned && !isNonTaskFragment(cleaned) && !isEmotionOnly(cleaned)) return cleaned
+  return deriveImplicitAction(evidence || title)
 }
 
 function normalizeTodos(rawTodos, source) {
   const seen = new Set()
   return (Array.isArray(rawTodos) ? rawTodos : [])
     .map((t, i) => {
-      const title = cleanTitle(t.title || t.evidence || '')
+      const title = cleanTitle(t.title, t.evidence)
       const taskType = TYPE_ENUM.includes(t.taskType) ? t.taskType : 'admin'
       const energyCost = ENERGY_ENUM.includes(t.energyCost) ? t.energyCost : 'medium'
       const emotionalLoad = ENERGY_ENUM.includes(t.emotionalLoad) ? t.emotionalLoad : 'low'
@@ -275,8 +317,9 @@ export async function parseTodosSmart(text) {
     const system = `你是 Life Kitchen 的调酒师。用户不是在填待办表，而是在吧台随口聊今天发生的事、惦记的事、想处理的事；请从这段话里听出今天真正需要处理的事项，并拆成结构化待办。
 重要：情绪、抱怨、背景、语气词不能单独成为待办。它们只能影响 emotionalLoad。不要把"我很累/今天很乱/有点焦虑"当作 title。
 不要漏掉隐性任务：例如"设定表一直挂在心上"应抽成"整理设定表"。
+如果原话是"我有点累但还想运动半小时"，title 写"运动"，estimatedTime 写 30。
 只输出 JSON 数组，每个元素字段：
-- title: 简短任务名（保留用户原话语气，不要改写润色）
+- title: 简短可勾选任务名，不含情绪词、时段词和分钟数
 - estimatedTime: 预计分钟数（整数，没说就按类型给经验值）
 - taskType: 七选一 ${TYPE_ENUM.join('/')}
 - energyCost: low/medium/high（精力消耗）

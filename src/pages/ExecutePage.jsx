@@ -64,40 +64,47 @@ export default function ExecutePage() {
       consumedActionKeys.current.add(key)
       completeTask(action.todoId, action.completedAt)
     })
-  }, []) // eslint-disable-line
+  }, [state.order, state.records, activeId]) // eslint-disable-line
+
+  useEffect(() => {
+    return onPetAction((action) => {
+      if (action.type !== 'undo' || !action.todoId) return
+      undoTask(action.todoId)
+    })
+  }, [state.order, state.records, activeId]) // eslint-disable-line
 
   const active = state.order.find((t) => t.id === activeId)
   const durSec = active ? active.estimatedTime * 60 : 0
   const isOverPlan = active ? elapsed > durSec : false
 
-  function buildSchedule() {
+  function buildSchedule(records = state.records) {
     return state.order.map((t) => ({
       id: t.id,
       title: t.title,
       category: t.taskType,
       taskType: t.taskType,
       estimatedTime: t.estimatedTime,
-      status: state.records[t.id]?.status || 'pending',
+      status: records[t.id]?.status || 'pending',
     }))
   }
 
-  function buildIdlePayload() {
+  function buildIdlePayload(records = state.records) {
     return {
       state: 'idle',
       bartenderId: petBartenderIdRef.current,
       selected: true,
       customBartender: customPet,
-      schedule: buildSchedule(),
+      schedule: buildSchedule(records),
     }
   }
 
-  function buildDonePayload() {
+  function buildDonePayload(records = state.records) {
     return {
       state: 'done',
       bartenderId: petBartenderIdRef.current,
       selected: true,
       customBartender: customPet,
-      schedule: buildSchedule(),
+      schedule: buildSchedule(records),
     }
   }
 
@@ -156,6 +163,18 @@ export default function ExecutePage() {
     } else {
       payloadRef.current = buildIdlePayload()
     }
+    pushPetState(payloadRef.current)
+  }
+
+  function undoTask(todoId) {
+    if (!todoId || activeId) return
+    const target = state.order.find((t) => t.id === todoId)
+    if (!target || statusOf(target) !== 'completed') return
+    const records = { ...state.records }
+    delete records[todoId]
+    dispatch({ type: 'CLEAR_RECORD', todoId })
+    lastCompleteTime.current = Date.now()
+    payloadRef.current = buildIdlePayload(records)
     pushPetState(payloadRef.current)
   }
 
@@ -244,6 +263,7 @@ export default function ExecutePage() {
   const allTouched = state.order.every((t) => statusOf(t))
   const completedCount = state.order.filter((t) => statusOf(t) === 'completed').length
   const hasCompleted = completedCount > 0
+  const lastCompletedTask = [...state.order].reverse().find((t) => statusOf(t) === 'completed')
 
   return (
     <div>
@@ -282,6 +302,11 @@ export default function ExecutePage() {
           <button className="btn-primary" disabled={allTouched} onClick={completeAll}>
             一键完成
           </button>
+          {lastCompletedTask && !activeId && (
+            <button className="btn-ghost task-undo-btn" onClick={() => undoTask(lastCompletedTask.id)}>
+              撤销上一项
+            </button>
+          )}
         </div>
         {state.order.map((t, i) => {
           const st = statusOf(t)
@@ -310,7 +335,7 @@ export default function ExecutePage() {
         <button className="btn-ghost" onClick={() => dispatch({ type: 'GO', step: 'optimize' })}>← 上一步</button>
         <div className="spacer" />
         <button className="btn-primary" onClick={requestFinalize}>
-          {hasCompleted ? (allTouched ? '生成今日饮品 ✦' : '直接调配成饮品') : '生成空杯报告'}
+          {hasCompleted ? (allTouched ? '生成今日出品 ✦' : '直接调配成今日出品') : '生成空杯报告'}
         </button>
       </div>
 
@@ -320,8 +345,8 @@ export default function ExecutePage() {
             <div className="confirm-title">{hasCompleted ? '还有事项没有完成' : '还没有完成的事项'}</div>
             <p>
               {hasCompleted
-                ? '种种可以直接把目前的进度调配成今日饮品。未完成的事项会在最后报告里标为未完成，不会被算作已完成。'
-                : '现在杯底还没有完成的心事片段，所以不会生成饮品，只会得到一只空杯和一份未完成报告。'}
+                ? '种种可以直接把目前的进度调配成今日出品。未完成的事项会在最后报告里标为未完成，不会被算作已完成。'
+                : '现在还没有完成的心事片段，所以不会生成成品，只会得到一只空杯和一份未完成报告。'}
             </p>
             <div className="btn-row">
               <button className="btn-ghost" onClick={() => setConfirmGenerate(false)}>再看看清单</button>

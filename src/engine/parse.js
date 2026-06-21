@@ -7,13 +7,14 @@ import { TYPE_KEYWORDS, PRIORITY_KEYWORDS, MUST_KEYWORDS, DEFAULT_TIME } from '.
 function splitClauses(text) {
   return text
     .replace(/\n/g, '，')
-    .split(/[，,。；;、]|还要|还有|然后|另外|以及|顺便|最好/)
+    .split(/[，,。；;、]|还要|还有|然后|另外|以及|顺便|最好|但是|但|不过|而且|并且/)
     .map((s) => s.trim())
     .filter((s) => s.length >= 2)
 }
 
 function detectType(clause) {
   const lower = clause.toLowerCase()
+  if (/(讨论|沟通|联系|回复|消息|邮件|开会|会议|对接)/.test(lower)) return 'communication'
   for (const [type, words] of Object.entries(TYPE_KEYWORDS)) {
     if (words.some((w) => lower.includes(w))) return type
   }
@@ -50,20 +51,59 @@ function detectEmotion(clause, type) {
 
 function isProbablyTask(clause) {
   const cleaned = clause.replace(/[，。！？!?、\s]/g, '')
-  const actionWords = /(写|做|改|交|发|回|讨论|开会|整理|找|运动|复盘|提交|设计|生成|处理|确认|看|读|学|买|约|打|联系|准备|规划|排|修|完成|上传|下载|汇总|沟通|推进|检查|测试|复习|背|练|预约|取|寄|付款|剪|拍|录|弄|办)/
+  const actionWords = /(写|做|改|交|发|回|回复|讨论|开会|整理|找|运动|复盘|提交|设计|生成|处理|确认|看|读|学|买|约|打|联系|准备|规划|排|修|完成|上传|下载|汇总|沟通|推进|检查|测试|复习|背|练|预约|取|寄|付款|剪|拍|录|弄|办)/
   const objectHints = /(作业|论文|报告|方案|文档|表|课|题|邮件|消息|会议|代码|设计|稿|图|视频|音频|材料|资料|账单|快递|运动|训练|复盘|项目|需求|接口|页面|简历)/
   const pureTime = /^(上午|下午|晚上|中午|早上|今晚|明天|后天|周[一二三四五六日天]|星期[一二三四五六日天]|\d{1,2}点|\d{1,3}(分钟|min|小时|h)|半小时|一小时)+$/
   const pureEmotion = /^(累|困|烦|焦虑|开心|难受|崩溃|低落|不想干|没精神|压力大|卡住|很乱|太乱|好烦|有点烦|有点累|emo)+$/
   return !pureTime.test(cleaned) && !pureEmotion.test(cleaned) && (actionWords.test(cleaned) || objectHints.test(cleaned))
 }
 
-function cleanTaskTitle(title) {
+function stripTimeWords(title) {
   return title
+    .replace(/(上午|下午|晚上|中午|早上|凌晨|今晚|今天|明天|后天|周[一二三四五六日天]|星期[一二三四五六日天])\s*/g, '')
+    .replace(/\d{1,2}\s*[:：]\s*\d{1,2}/g, '')
+    .replace(/(\d{1,2}|[一二两三四五六七八九十]{1,3})点(钟)?(之前|以后|左右|前|后)?/g, '')
+    .replace(/(\d+(?:\.\d+)?)\s*(分钟|min|小时|h)/gi, '')
+    .replace(/半小时|一小时|两小时/g, '')
+}
+
+function deriveImplicitAction(clause) {
+  const cleaned = stripTimeWords(clause)
+    .replace(/^(我|今天|现在|其实|还是|还要|还得|想要|想把|想|需要|得|要|把|去|再|先)+/, '')
+    .replace(/(一直)?(挂在心上|惦记|放心不下|没弄完|没处理|没回|还没弄|还没做|卡着|卡住了?)$/, '')
+    .replace(/那边的?/g, '')
+    .replace(/\s/g, '')
+  if (!cleaned) return ''
+  if (/消息|微信|邮件|私信|通知/.test(cleaned)) return `回复${cleaned.replace(/信息$/, '消息')}`
+  if (/截图|资料|材料|文件|票据|报销|账单/.test(cleaned)) return `整理${cleaned}`
+  if (/表|设定|方案|文档|报告|论文|稿|页面|设计|代码|需求|项目/.test(cleaned)) return `推进${cleaned}`
+  if (/运动|训练|复盘|会议|讨论/.test(cleaned)) return cleaned
+  return ''
+}
+
+function cleanTaskTitle(title) {
+  const stripped = stripTimeWords(title)
     .replace(/^(我|今天|现在|其实|想|要|得|还|得要|需要|然后|另外)+/, '')
-    .replace(/(上午|下午|晚上|中午|早上|今晚|明天|后天)?\s*(\d{1,2}|[一二两三四五六七八九十]{1,3})点(钟)?(之前|以后|左右)?/g, '')
     .replace(/^(有点|很|太|特别)?(累|烦|焦虑|乱|低落|emo|没精神)(但|但是|不过|也)?/, '')
-    .replace(/^(我|今天|现在|其实|想|要|得|还|得要|需要|然后|另外)+/, '')
+    .replace(/^(我|今天|现在|其实|还是|还要|还得|想要|想把|想|需要|得|要|把|去|再|先)+/, '')
+    .replace(/^(一件|一个|一下|点|些)+/, '')
+    .replace(/(一直)?(挂在心上|惦记|放心不下|没弄完|没处理|没回|还没弄|还没做|卡着|卡住了?)$/, '')
+    .replace(/也?(要|得|没|还没)?(回|回复)$/, '')
+    .replace(/也?(要|得|没|还没)?(找|找一下|处理|处理一下|整理|整理一下|弄|弄一下)$/, '')
+    .replace(/还没(改完|写完|做完|弄完|处理完)$/, '')
+    .replace(/(改完|写完|做完|弄完|处理完)$/, '')
+    .replace(/也$/, '')
+    .replace(/^(能|可以|最好能|最好可以)/, '')
+    .replace(/一下/g, '')
+    .replace(/那边的?/g, '')
     .trim()
+  if (/消息|微信|邮件|私信|通知|信息/.test(stripped) && !/^(回|回复|联系)/.test(stripped)) return `回复${stripped.replace(/信息$/, '消息')}`
+  if (/截图|资料|材料|文件|票据|报销|账单/.test(stripped) && !/^(整理|找|处理)/.test(stripped)) return `整理${stripped}`
+  if (/写完/.test(title) && !/^(写|完成)/.test(stripped)) return `写完${stripped}`
+  if (/做完/.test(title) && !/^(做|完成)/.test(stripped)) return `做完${stripped}`
+  if (/论文|文档|报告|稿/.test(stripped) && /改|修改/.test(title)) return `修改${stripped.replace(/^(改|修改)/, '')}`
+  if (/表|设定|方案|文档|报告|论文|稿|页面|设计|代码|需求|项目|作品集|作业|课题/.test(stripped) && !/^(推进|写|做|改|整理|讨论|设计|提交)/.test(stripped)) return `推进${stripped}`
+  return stripped || deriveImplicitAction(title)
 }
 
 export function parseTodos(text) {

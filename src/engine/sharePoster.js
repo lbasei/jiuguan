@@ -84,6 +84,19 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 3) {
   lines.slice(0, maxLines).forEach((row, index) => ctx.fillText(row, x, y + index * lineHeight))
 }
 
+function honorific(profile = {}) {
+  if (profile.gender === 'male') return '先生'
+  if (profile.gender === 'female') return '小姐'
+  return '旅人'
+}
+
+function guestLine(card) {
+  const profile = card.userProfile || {}
+  const place = profile.locationLabel || '远方'
+  const name = profile.name || profile.displayName || '无名'
+  return `To 来自${place}的${name}${honorific(profile)}`
+}
+
 function drawPosterDrink(ctx, layers, palette) {
   const cx = 450
   const top = 420
@@ -222,6 +235,10 @@ export async function shareDrinkPoster(card) {
   ctx.textAlign = 'center'
   ctx.fillText(`${card.bartender || '种种'} 出品`, 130, 42)
   ctx.restore()
+
+  ctx.font = 'italic 24px Georgia, "Songti SC", serif'
+  ctx.fillStyle = 'rgba(36,68,92,.68)'
+  ctx.fillText(`From ${card.bartender || '种种'}  ·  ${guestLine(card)}`, 450, 210)
 
   drawPosterDrink(ctx, layers, palette)
 

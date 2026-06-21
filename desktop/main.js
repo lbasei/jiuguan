@@ -8,7 +8,7 @@ const path = require('path')
 const fs = require('fs')
 
 let win
-let current = { state: 'choosing', bartenderId: 'lemon', selected: false }
+let current = { state: 'idle', bartenderId: 'lemon', selected: false }
 let pendingActions = [] // 桌宠点击产生的动作队列，等网页端拉取
 let petMode = 'normal'
 let dragFollowTimer = null
@@ -221,7 +221,11 @@ function startServer() {
 
 function syncWindowVisibility() {
   if (!win) return
-  const shouldShow = current.state === 'choosing' || current.selected || current.state === 'brewing' || current.state === 'done'
+  const shouldShow =
+    (current.state === 'choosing' && current.allowDesktopChoice) ||
+    current.selected ||
+    current.state === 'brewing' ||
+    current.state === 'done'
   if (shouldShow) win.showInactive()
   else win.hide()
 }

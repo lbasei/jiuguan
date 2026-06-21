@@ -11,13 +11,13 @@
       timing: { duration: 1300, iterations: Infinity, easing: 'steps(2)' },
     },
     brewing: {
-      name: 'shake',
+      name: 'focusBreathe',
       keyframes: [
-        { transform: 'rotate(-8deg)' },
-        { transform: 'rotate(8deg) translateY(-3px)' },
-        { transform: 'rotate(-8deg)' },
+        { transform: 'translateY(0) scale(1)' },
+        { transform: 'translateY(-2px) scale(1.01)' },
+        { transform: 'translateY(0) scale(1)' },
       ],
-      timing: { duration: 350, iterations: Infinity, easing: 'steps(2)' },
+      timing: { duration: 3200, iterations: Infinity, easing: 'ease-in-out' },
     },
   }
 
@@ -42,13 +42,13 @@
       timing: { duration: 820, iterations: Infinity, easing: 'ease-out' },
     },
     brewing: {
-      name: 'workBounce',
+      name: 'quietFocus',
       keyframes: [
-        { transform: 'translateY(0) rotate(-2deg) scale(1)' },
-        { transform: 'translateY(-9px) rotate(3deg) scale(1.03)' },
-        { transform: 'translateY(0) rotate(-2deg) scale(1)' },
+        { transform: 'translateY(0) scale(1)', filter: 'brightness(1)' },
+        { transform: 'translateY(-2px) scale(1.01)', filter: 'brightness(1.025)' },
+        { transform: 'translateY(0) scale(1)', filter: 'brightness(1)' },
       ],
-      timing: { duration: 620, iterations: Infinity, easing: 'ease-in-out' },
+      timing: { duration: 3600, iterations: Infinity, easing: 'ease-in-out' },
     },
     choosing: {
       name: 'summonPulse',
