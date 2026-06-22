@@ -7,23 +7,23 @@
       html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; -webkit-user-select: none; }
       #stage {
         height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-        padding-bottom: 6px; cursor: grab; touch-action: none;
+        padding-bottom: 4px; cursor: grab; touch-action: none;
         app-region: no-drag; -webkit-app-region: no-drag; user-select: none;
       }
       #stage.dragging { cursor: grabbing; }
       #stage.choosing-mode { cursor: default; }
       #stage.island-mode {
-        flex-direction: row; justify-content: center; gap: 8px; padding: 6px 8px;
+        flex-direction: row; justify-content: center; gap: 6px; padding: 4px 6px;
         background: transparent;
         border: 0; box-shadow: none;
         cursor: pointer;
       }
       #petControls {
-        position: absolute; right: 7px; top: 7px; display: flex; gap: 5px;
+        position: absolute; right: 5px; top: 5px; display: flex; gap: 4px;
         app-region: no-drag; -webkit-app-region: no-drag; z-index: 3;
       }
       .pet-tool {
-        width: 28px; height: 28px; padding: 0; border: 2px solid #23445C;
+        width: 24px; height: 24px; padding: 0; border: 2px solid #23445C;
         background: #F8FFFD; color: #23445C;
         box-shadow: 2px 2px 0 #23445C; font-size: 15px; line-height: 1; cursor: pointer;
         font-family: 'DotGothic16', monospace; position: relative;
@@ -32,17 +32,17 @@
       .pet-tool::before,
       .pet-tool::after { content: ''; position: absolute; display: block; }
       .tool-wand::before {
-        width: 17px; height: 4px; left: 5px; top: 12px;
+        width: 14px; height: 3px; left: 4px; top: 10px;
         background: #F8FFFD; border: 2px solid #23445C; transform: rotate(-38deg);
       }
       .tool-wand::after {
-        width: 8px; height: 8px; right: 4px; top: 3px; background: #7E8BE6;
+        width: 7px; height: 7px; right: 3px; top: 3px; background: #7E8BE6;
         clip-path: polygon(50% 0, 62% 36%, 100% 50%, 62% 64%, 50% 100%, 38% 64%, 0 50%, 38% 36%);
         filter: drop-shadow(1px 1px 0 #23445C);
       }
       .tool-clock::before {
-        content: '00'; left: 4px; top: 8px; width: 18px; height: auto;
-        font-family: 'Press Start 2P', monospace; font-size: 7px; color: #23445C;
+        content: '00'; left: 3px; top: 7px; width: 18px; height: auto;
+        font-family: 'Press Start 2P', monospace; font-size: 6px; color: #23445C;
         border: 0; border-radius: 0; background: transparent; box-shadow: none;
       }
       .tool-clock::after {
@@ -58,11 +58,11 @@
         display: none;
       }
       #bubble {
-        font-family: 'DotGothic16', monospace; font-size: 13px; color: #23445C;
+        font-family: 'DotGothic16', monospace; font-size: 12px; color: #23445C;
         position: relative; overflow: hidden;
         background: rgba(248,255,253,.96);
         border: 3px double #23445C; box-shadow: 3px 3px 0 #23445C, 0 0 0 2px rgba(201,255,240,.56);
-        padding: 8px 16px; margin-bottom: 7px; max-width: 238px; text-align: center; min-height: 20px;
+        padding: 7px 12px; margin-bottom: 5px; max-width: 196px; text-align: center; min-height: 18px;
         opacity: 0; transition: opacity .2s;
         clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px);
       }
@@ -70,7 +70,7 @@
       #bubble .act { font-family: 'Press Start 2P'; font-size: 8px; color: #7E8BE6; display: block; margin-top: 4px; }
       #bubble .summon-call {
         display: block; font-family: 'Cinzel Decorative', 'ZCOOL XiaoWei', serif;
-        font-size: 15px; font-weight: 700; color: #23445C; text-shadow: 0 1px 0 rgba(255,255,255,.75);
+        font-size: 14px; font-weight: 700; color: #23445C; text-shadow: 0 1px 0 rgba(255,255,255,.75);
       }
       #bubble .summon-call::before,
       #bubble .summon-call::after {
@@ -80,11 +80,11 @@
         display: block; margin-top: 2px; color: #638397; font-size: 10px;
       }
       #counter {
-        font-family: 'DotGothic16', monospace; font-size: 12px; color: #23445C;
+        font-family: 'DotGothic16', monospace; font-size: 11px; color: #23445C;
         background: rgba(255,253,244,.98);
         background-size: 16px 100%, auto;
         border: 2px solid #E8D48A; box-shadow: 2px 2px 0 rgba(35,68,92,.42);
-        padding: 8px 9px; margin-bottom: 7px; width: 264px; max-height: 166px; overflow-y: auto;
+        padding: 7px 8px; margin-bottom: 5px; width: 208px; max-height: 126px; overflow-y: auto;
         text-align: left; opacity: 0; visibility: hidden; transition: opacity .2s;
         clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%, 0 8px);
       }
@@ -111,8 +111,8 @@
       }
       #stage.island-mode #timerChip {
         display: inline-flex; margin: 0; box-shadow: none; border-width: 0; padding: 0;
-        min-width: 92px; max-width: 116px; overflow: visible;
-        font-size: 12px;
+        min-width: 78px; max-width: 96px; overflow: visible;
+        font-size: 10px;
       }
       #stage.island-mode #timerChip::before {
         content: 'LEFT'; font-family: 'Press Start 2P', monospace; font-size: 5px;
@@ -122,14 +122,14 @@
         content: '+TIME'; color: #D86F63;
       }
       #islandComplete {
-        display: none; width: 31px; height: 31px; border: 0; padding: 0; margin: 0;
+        display: none; width: 25px; height: 25px; border: 0; padding: 0; margin: 0;
         background: transparent; box-shadow: none; cursor: pointer;
         app-region: no-drag; -webkit-app-region: no-drag;
       }
       #stage.island-mode #islandComplete.show { display: inline-grid; place-items: center; }
       #islandComplete::before {
-        content: ''; display: block; width: 19px; height: 12px;
-        border-left: 5px solid #D9A52B; border-bottom: 5px solid #D9A52B;
+        content: ''; display: block; width: 16px; height: 10px;
+        border-left: 4px solid #D9A52B; border-bottom: 4px solid #D9A52B;
         transform: rotate(-45deg) translate(1px, -2px);
         filter:
           drop-shadow(-1px 0 0 #FFF7C8)
@@ -140,7 +140,7 @@
       #counter.show { opacity: 1; visibility: visible; }
       #counter .ticket-head {
         display: flex; align-items: center; justify-content: space-between; gap: 8px;
-        font-family: 'DotGothic16', monospace; font-size: 14px; font-weight: 700;
+        font-family: 'DotGothic16', monospace; font-size: 13px; font-weight: 700;
         color: #23445C; margin-bottom: 5px; border-bottom: 1px dashed rgba(35,68,92,.26); padding-bottom: 4px;
       }
       #counter .ticket-head small { font-family: 'DotGothic16', monospace; font-size: 10px; color: #638397; }
@@ -155,7 +155,7 @@
       #counter .ingredient {
         padding: 5px 0; border-bottom: 1px dashed rgba(35,68,92,.3); cursor: default;
         app-region: no-drag; -webkit-app-region: no-drag; position: relative;
-        display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: 5px;
+        display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 5px;
       }
       #counter .ingredient.current {
         grid-template-columns: 1fr auto; row-gap: 2px; padding: 7px 0 8px;
@@ -206,7 +206,7 @@
         cursor: pointer;
       }
       #petConfirm {
-        display: none; margin: 2px 0 5px; app-region: no-drag; -webkit-app-region: no-drag;
+        display: none; margin: 1px 0 4px; app-region: no-drag; -webkit-app-region: no-drag;
       }
       #stage.choosing-mode #petConfirm { display: block; }
       #stage:not(.choosing-mode) #petConfirm,
@@ -223,18 +223,18 @@
       }
       #workspace {
         display: flex; flex-direction: row; align-items: flex-end; justify-content: center;
-        gap: 6px; margin-bottom: 2px; position: relative;
+        gap: 4px; margin-bottom: 1px; position: relative;
       }
       .chooser-arrow {
-        width: 42px; height: 52px; border: 0; padding: 0; margin-bottom: 60px;
+        width: 32px; height: 42px; border: 0; padding: 0; margin-bottom: 44px;
         background: transparent; box-shadow: none; opacity: 0; visibility: hidden;
         app-region: no-drag; -webkit-app-region: no-drag; cursor: pointer;
-        position: relative; z-index: 9; flex: 0 0 42px; pointer-events: auto;
+        position: relative; z-index: 9; flex: 0 0 32px; pointer-events: auto;
         filter: drop-shadow(2px 2px 0 #23445C);
       }
       #stage.choosing-mode .chooser-arrow { opacity: 1; visibility: visible; }
       .chooser-arrow::before {
-        content: ''; display: block; width: 28px; height: 38px; margin: 7px auto; background: #8FE4DF;
+        content: ''; display: block; width: 23px; height: 31px; margin: 6px auto; background: #8FE4DF;
         clip-path: polygon(
           100% 0, 62% 0, 0 50%,
           62% 100%, 100% 100%, 38% 50%
@@ -245,16 +245,16 @@
       #stage.choosing-mode .chooser-arrow::after {
         content: '';
         position: absolute;
-        left: 17px;
-        top: 20px;
-        width: 13px;
-        height: 12px;
+        left: 13px;
+        top: 16px;
+        width: 10px;
+        height: 9px;
         background: #C9FFF0;
         clip-path: polygon(100% 0, 42% 50%, 100% 100%, 74% 100%, 16% 50%, 74% 0);
       }
       #stage.choosing-mode #petNext::after { transform: scaleX(-1); }
       #magicFx {
-        position: absolute; left: 50%; top: 50%; width: 170px; height: 145px;
+        position: absolute; left: 50%; top: 50%; width: 136px; height: 116px;
         transform: translate(-50%, -58%); pointer-events: none; opacity: 0;
       }
       #magicFx.show { opacity: 1; }
@@ -316,38 +316,38 @@
       }
       #sprite {
         image-rendering: pixelated; cursor: grab; transform-origin: 50% 80%;
-        position: relative; width: 210px; height: 210px; display: flex; align-items: center; justify-content: center;
+        position: relative; width: 158px; height: 158px; display: flex; align-items: center; justify-content: center;
         app-region: no-drag; -webkit-app-region: no-drag;
       }
       #sprite.dragging,
       #plate.dragging { cursor: grabbing; }
       #stage.choosing-mode #sprite { cursor: pointer; }
       #stage.island-mode #sprite {
-        width: 52px; height: 52px; flex: 0 0 52px;
+        width: 40px; height: 40px; flex: 0 0 40px;
       }
       #stage.island-mode #sprite img {
-        width: 52px; height: 52px;
+        width: 40px; height: 40px;
       }
       #stage.island-mode #sprite svg {
-        width: 52px; height: 52px;
+        width: 40px; height: 40px;
       }
       #sprite img {
-        width: 210px; height: 210px; object-fit: contain; image-rendering: pixelated; display: block;
+        width: 158px; height: 158px; object-fit: contain; image-rendering: pixelated; display: block;
         -webkit-user-drag: none; user-select: none;
       }
       #stage[data-pet="ginger"] #workspace {
         margin-bottom: -4px;
       }
       #stage[data-pet="cilantro"] #sprite img {
-        width: 238px;
-        height: 238px;
+        width: 178px;
+        height: 178px;
       }
       #stage.island-mode[data-pet="cilantro"] #sprite img {
-        width: 58px;
-        height: 58px;
+        width: 45px;
+        height: 45px;
       }
       #cup {
-        width: 42px; height: 56px; margin-bottom: 4px;
+        width: 34px; height: 46px; margin-bottom: 3px;
         border: 3px solid #23445C; border-top: none; border-radius: 0 0 9px 9px;
         background: rgba(248, 255, 253, 0.38); position: relative; overflow: hidden;
         opacity: 0; visibility: hidden; transition: opacity .2s;
