@@ -1705,6 +1705,26 @@ label.field { display: block; font-size: 16px; color: var(--muted); margin: 8px 
 .confirm-card p {
   margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7;
 }
+.delete-confirm-card {
+  max-width: min(420px, calc(100vw - 32px));
+}
+.delete-preview {
+  margin: 10px 0 16px;
+  padding: 10px 12px;
+  color: #24445C;
+  background: #FFF8DA;
+  border-left: 4px solid #E4C464;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+.danger-action {
+  background: #D86F63;
+  border-color: #9E4B42;
+  color: #FFF9EA;
+}
+.danger-action:hover {
+  background: #C65E54;
+}
 .move-btns { display: flex; flex-direction: column; gap: 3px; }
 .move-btns button { padding: 2px 8px; font-size: 12px; box-shadow: none; border-width: 2px; }
 .move-btns button:active { transform: translate(1px,1px); }

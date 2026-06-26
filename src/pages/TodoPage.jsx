@@ -234,6 +234,7 @@ export default function TodoPage() {
   const [recipeCollapsed, setRecipeCollapsed] = useState(false)
   const [bottling, setBottling] = useState(false)
   const [parseMeta, setParseMeta] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const mode = state.assistantMode || 'daily'
   const modeConfig = ASSISTANT_MODES[mode] || ASSISTANT_MODES.daily
   const recognitionRef = useRef(null)
@@ -571,7 +572,15 @@ export default function TodoPage() {
                       </button>
                       <span className="time-value">{formatDuration(t.estimatedTime)}</span>
                     </div>
-                    <button className="btn-ghost slip-delete" onClick={() => dispatch({ type: 'REMOVE_TODO', id: t.id })}>删</button>
+                    <button
+                      className="btn-ghost slip-delete"
+                      type="button"
+                      onClick={() => setDeleteTarget(t)}
+                      aria-label={`删除第 ${index + 1} 条`}
+                      title="移除"
+                    >
+                      删
+                    </button>
                   </div>
                 ))}
               </div>
@@ -594,6 +603,29 @@ export default function TodoPage() {
         <button className="btn-ghost" onClick={() => dispatch({ type: 'GO', step: 'bartender' })}>← 上一步</button>
         <div className="spacer" />
       </div>
+      {deleteTarget && (
+        <div className="confirm-panel" role="dialog" aria-modal="true" aria-label="确认删除事项">
+          <div className="confirm-card delete-confirm-card">
+            <div className="confirm-title">删除这条事项？</div>
+            <p>删除后会从今日配料纸里移除，当前顺序和预估时间不会保留。这个操作不能恢复。</p>
+            <div className="delete-preview">{deleteTarget.title}</div>
+            <div className="btn-row">
+              <button className="btn-ghost" type="button" onClick={() => setDeleteTarget(null)}>取消</button>
+              <div className="spacer" />
+              <button
+                className="btn-primary danger-action"
+                type="button"
+                onClick={() => {
+                  dispatch({ type: 'REMOVE_TODO', id: deleteTarget.id })
+                  setDeleteTarget(null)
+                }}
+              >
+                确认删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

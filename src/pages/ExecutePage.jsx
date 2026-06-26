@@ -249,7 +249,7 @@ export default function ExecutePage() {
     <div>
       <h2 className="title">精灵调配中</h2>
       <p className="subtitle" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        点「开始」，今日调酒师会把这件事放上吧台调配。
+        时间表只是酒单。今天先做哪一项，就点哪一项开始计时。
       </p>
 
       {active && (
@@ -276,8 +276,8 @@ export default function ExecutePage() {
       <div className="card">
         <div className="execute-toolbar">
           <div>
-            <div className="toolbar-title">今日调配清单</div>
-            <div className="muted-note">想快一点收尾时，可以让种种把剩下的都标记完成。</div>
+            <div className="toolbar-title">实际执行清单</div>
+            <div className="muted-note">不用按 1 到 5。计时开始后只记录真实经过的时间。</div>
           </div>
           <button className="btn-primary" disabled={allTouched} onClick={completeAll}>
             一键完成
