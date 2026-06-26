@@ -5,7 +5,10 @@ import { useStore } from '../store/store.jsx'
 import { parseTodosSmart } from '../engine/llm.js'
 import { transcribeAudio } from '../engine/voice.js'
 import { getBartender } from '../data/bartenders.js'
-import { formatDuration } from '../engine/time.js'
+import { requestSeedanceMotion } from '../engine/seedance.js'
+import dailyModeIcon from '../../assets/mode-icons/daily-icon.png'
+import freeTimeModeIcon from '../../assets/mode-icons/free-time-icon.png'
+import longGoalModeIcon from '../../assets/mode-icons/long-goal-icon.png'
 
 const SAMPLE =
   '今天有点乱。我想把 PRD 写完，晚上还要讨论比赛方案，小精灵设定表也一直挂在心上。老师那边的信息要回，报销截图也要找一下。其实我有点累，但还想运动半小时，晚上最好能复盘一下今天做了什么。'
@@ -47,6 +50,107 @@ const ASSISTANT_MODES = {
     note: (count) => `种种从长期目标里拆出了 ${count} 个今日推进动作，后续可以存进你的酒柜记录。`,
     placeholder: '我想在一个月内把作品集整理出来，但现在材料很散，也不知道每天该推进什么。今天只有一小时，可以先做哪几步？',
   },
+}
+
+const MODE_ICONS = {
+  daily: dailyModeIcon,
+  free_time: freeTimeModeIcon,
+  long_goal: longGoalModeIcon,
+}
+
+const TIME_PRESETS = [15, 25, 45]
+
+const TASK_TONES = {
+  deep_work: { bg: '#E4F7F4', line: '#8BCDC7', dot: '#5FB9B4' },
+  creative: { bg: '#FFF1C8', line: '#E4C464', dot: '#CFA33B' },
+  communication: { bg: '#E7F3FF', line: '#A8CCE8', dot: '#74ACD0' },
+  admin: { bg: '#FDEBF4', line: '#E8B6CF', dot: '#CF83AA' },
+  recovery: { bg: '#FFF8DC', line: '#E9DFA5', dot: '#C8B85F' },
+  urgent: { bg: '#FFECEF', line: '#E7A8B3', dot: '#D07C8A' },
+  review: { bg: '#EAF8E8', line: '#A8D6A3', dot: '#76B870' },
+  fallback: { bg: '#F2F7F7', line: '#B8CCCC', dot: '#8BAAAA' },
+}
+
+function getTaskTone(taskType) {
+  return TASK_TONES[taskType] || TASK_TONES.fallback
+}
+
+function TimeWheel({ value, label, onChange }) {
+  const minutes = Number(value || 30)
+  const [draft, setDraft] = useState(String(minutes))
+  const clamp = (next) => Math.max(1, Math.min(240, Math.round(next)))
+  const set = (next) => {
+    const safe = clamp(next)
+    setDraft(String(safe))
+    onChange(safe)
+  }
+  const nudge = (delta) => set(minutes + delta)
+
+  useEffect(() => {
+    setDraft(String(minutes))
+  }, [minutes])
+
+  const commitDraft = () => {
+    const next = Number(draft)
+    if (!Number.isFinite(next)) {
+      setDraft(String(minutes))
+      return
+    }
+    set(next)
+  }
+
+  return (
+    <div className="time-counter">
+      <div className="time-desktop-editor" role="group" aria-label={label}>
+        <button type="button" className="counter-step minus" aria-label={`${label} 减一分钟`} onClick={() => nudge(-1)}>
+          <span />
+        </button>
+        <label className="time-input-shell">
+          <input
+            type="number"
+            inputMode="numeric"
+            min="1"
+            max="240"
+            step="1"
+            value={draft}
+            aria-label={label}
+            onChange={(event) => {
+              setDraft(event.target.value)
+              if (event.target.value !== '') set(Number(event.target.value))
+            }}
+            onBlur={commitDraft}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.currentTarget.blur()
+              if (event.key === 'ArrowUp') {
+                event.preventDefault()
+                nudge(1)
+              }
+              if (event.key === 'ArrowDown') {
+                event.preventDefault()
+                nudge(-1)
+              }
+            }}
+          />
+          <span>min</span>
+        </label>
+        <button type="button" className="counter-step plus" aria-label={`${label} 加一分钟`} onClick={() => nudge(1)}>
+          <span />
+        </button>
+      </div>
+      <div className="time-presets" aria-label="常用时长">
+        {TIME_PRESETS.map((preset) => (
+          <button
+            key={preset}
+            type="button"
+            className={minutes === preset ? 'active' : ''}
+            onClick={() => set(preset)}
+          >
+            {preset}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 const MODE_TALK = {
@@ -159,40 +263,40 @@ function fallbackModeTodos(mode, input, parsedTodos) {
 
 const TALK_LINES = {
   rosemary: [
-    '坐。先报最要紧的主菜，碎料我等会儿替你收边。',
-    '今天如果乱，就先讲 deadline 和必须交付的东西。顺序错了，整杯会散。',
-    '我会把高优先级放到炉火最稳的时候。还有哪件事不能拖？',
-    '别急着把所有杂事倒进来。先说主线，再说消息、截图、收尾。',
+    '先坐下。别全倒出来，最要紧的那件先说。',
+    '今天乱的话，就先讲必须交出去的东西。别从边角料开始。',
+    '我不怕任务多，我怕顺序散。哪件事不能拖？',
+    '消息、截图、收尾都先放旁边。主线端上来。',
   ],
   ginger: [
-    '来，先开火。别讲完整计划，先讲一个能十分钟启动的口子。',
-    '卡住没关系。把最容易开始的那件事丢进锅里，我先让它热起来。',
-    '你不用一下子做完。告诉我哪件事最小、最顺手，我们拿它点火。',
-    '拖着的时候别硬拽主线，先找一口热汤：回复一句、开个文档、写三行。',
+    '来，别想太久。先讲一件十分钟能碰到边的。',
+    '卡住就卡住，先把锅烧热。最容易开始的是哪件？',
+    '不用立刻变厉害，先动一下。说一个小口子就行。',
+    '开文档、回一句、写三行，随便哪个都行。先点火。',
   ],
   mint: [
-    '慢慢说。累本身也算味道，我会把它放进缓冲层，不逼你硬撑。',
-    '先告诉我哪些事耗神，哪些事能让你回一点气。顺序要留呼吸。',
-    '高压任务后面我会垫一层奶泡。你只管说，别把自己熬干。',
-    '如果今天能量低，我们就少晃杯，多留空隙。哪件事最重？',
+    '慢慢说，今天累也可以算进去。',
+    '先告诉我哪件事最耗神，哪件事做完会舒服一点。',
+    '你不用硬撑得很漂亮。我们把空隙也排进去。',
+    '如果今天能量低，就少排一点。先说最重的那件。',
   ],
   lemon: [
-    '说吧，今天是哪件事先把你酸到了？我先把黏住的地方切开。',
-    '别铺垫，直接讲要做什么。发黏的脑子需要一点清醒的酸味。',
-    '我会先挑一个爽快入口，再把重点捞出来。哪件事最该醒神？',
-    '情绪可以有，但别让它糊住任务。讲事，我替你把废话滤掉。',
+    '说吧，今天哪里卡住了？别铺垫太久。',
+    '你现在不是没事做，是脑子糊住了。先讲具体那件。',
+    '我先帮你切开一个清爽入口。哪件最该醒神？',
+    '情绪可以讲，但任务别藏在后面。把那件事说出来。',
   ],
   garlic: [
-    '先把被打断的事说出来。我会把消息和杂事集中放进同一只托盘。',
-    '不用替所有人都留位置。哪些必须回，哪些可以晚点，我帮你立边界。',
-    '今天先守住杯口：深度任务不要被零碎小料一直撒进去。',
-    '把外界请求都放上吧台。我会分出“现在处理”和“集中处理”。',
+    '谁又来打断你了？先把这些东西摆出来。',
+    '不用什么都立刻回。哪些必须回，哪些可以晚点？',
+    '今天先把门关一会儿，不然主线又被切碎。',
+    '外面的请求都放这边。我帮你分现在处理和等会儿处理。',
   ],
   cilantro: [
-    '随便说，先不用排队。我们从最轻、最顺口的一口开始。',
-    '不想被计划管住也可以说。今天的顺序可以边喝边调。',
-    '先挑一件不费劲的事讲，剩下的慢慢拌进去，不急着定死。',
-    '你可以改主意。我只帮你铺一条能走进去的小路。',
+    '随便说，不用一上来就排得很整齐。',
+    '不想被计划管着也行。我们先找一个顺口的入口。',
+    '先讲一件不费劲的，剩下的等会儿再拌进去。',
+    '你可以改主意，我不急。先走进去再说。',
   ],
 }
 
@@ -234,8 +338,10 @@ export default function TodoPage() {
   const [recipeCollapsed, setRecipeCollapsed] = useState(false)
   const [bottling, setBottling] = useState(false)
   const [parseMeta, setParseMeta] = useState(null)
+  const [modeMotion, setModeMotion] = useState({ videoUrl: '', loading: false })
   const [deleteTarget, setDeleteTarget] = useState(null)
   const mode = state.assistantMode || 'daily'
+  const isQuickMode = state.workflowMode !== 'full'
   const modeConfig = ASSISTANT_MODES[mode] || ASSISTANT_MODES.daily
   const recognitionRef = useRef(null)
   const mediaRecorderRef = useRef(null)
@@ -247,6 +353,23 @@ export default function TodoPage() {
   useEffect(() => {
     setLineIndex(0)
   }, [bartender.id])
+
+  useEffect(() => {
+    let cancelled = false
+    setModeMotion({ videoUrl: '', loading: true })
+    requestSeedanceMotion({
+      scene: mode,
+      mode,
+      bartender,
+      referenceImage: bartender.image,
+    }).then((motion) => {
+      if (cancelled) return
+      setModeMotion({ videoUrl: motion.videoUrl || '', loading: false })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [mode, bartender.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function parse() {
     const input = text.trim() || modeConfig.placeholder
@@ -269,13 +392,8 @@ export default function TodoPage() {
   }
 
   function setTodoTime(todo, minutes) {
-    const snapped = Math.round(Number(minutes || 5) / 5) * 5
-    const next = Math.max(5, Math.min(240, snapped))
+    const next = Math.max(1, Math.min(240, Math.round(Number(minutes || 1))))
     dispatch({ type: 'UPDATE_TODO', id: todo.id, patch: { estimatedTime: next } })
-  }
-
-  function nudgeTodoTime(todo, delta) {
-    setTodoTime(todo, Number(todo.estimatedTime || 30) + delta)
   }
 
   function petTalk() {
@@ -413,10 +531,10 @@ export default function TodoPage() {
 
   return (
     <div>
-      <h2 className="title">{modeConfig.title}</h2>
-      <p className="subtitle">{modeConfig.subtitle}</p>
+      <h2 className="title">{isQuickMode ? '今天要做什么？' : modeConfig.title}</h2>
+      <p className="subtitle">{isQuickMode ? '写一段话就好，我会整理成能直接执行的清单。' : modeConfig.subtitle}</p>
 
-      <div className="assistant-mode-tabs" role="tablist" aria-label="选择种种助理模式">
+      {!isQuickMode && <div className="assistant-mode-tabs" role="tablist" aria-label="选择种种助理模式">
         {Object.entries(ASSISTANT_MODES).map(([key, item]) => (
           <button
             key={key}
@@ -428,14 +546,17 @@ export default function TodoPage() {
               setParseMeta(null)
             }}
           >
+            <i className="mode-tab-icon" aria-hidden="true">
+              <img src={MODE_ICONS[key]} alt="" />
+            </i>
             <strong>{item.label}</strong>
             <span>{key === 'daily' ? '安排今天' : key === 'free_time' ? '用好空档' : '拆长期目标'}</span>
           </button>
         ))}
-      </div>
+      </div>}
 
-      <div className="talk-seat">
-        <div className={`bar-talk mode-${mode}`}>
+      <div className={`talk-seat ${isQuickMode ? 'quick-talk-seat' : ''}`}>
+        {!isQuickMode && <div className={`bar-talk mode-${mode}`}>
           <div className="bar-back" aria-hidden="true">
             <span />
             <span />
@@ -451,15 +572,17 @@ export default function TodoPage() {
           )}
           {!bartender.image && <button className="bar-bartender-fallback" onClick={petTalk} type="button" aria-label="和种种对话">✦</button>}
           <div className={`mode-scene-prop prop-${mode}`} aria-hidden="true">
-            <span className="prop-main" />
-            <span className="prop-extra" />
-            <span className="prop-spark" />
+            {modeMotion.videoUrl ? (
+              <video className="mode-scene-video" src={modeMotion.videoUrl} autoPlay loop muted playsInline />
+            ) : (
+              <img className="mode-scene-icon" src={MODE_ICONS[mode]} alt="" />
+            )}
           </div>
           <div className="bar-counter" aria-hidden="true" />
-        </div>
+        </div>}
 
         <div className="talk-card">
-          <label className="field">{modeConfig.field}</label>
+          <label className="field">{isQuickMode ? '今天的事' : modeConfig.field}</label>
           <textarea
             placeholder={modeConfig.placeholder}
             value={text}
@@ -472,7 +595,7 @@ export default function TodoPage() {
             <button className="btn-ghost" onClick={() => setText(modeConfig.placeholder)}>用示例</button>
             <div className="spacer" />
             <button className="btn-primary" onClick={parse} disabled={loading}>
-              {loading ? '整理中…' : todos.length ? modeConfig.redo : modeConfig.action}
+              {loading ? '整理中…' : todos.length ? '重新整理' : '整理清单'}
             </button>
           </div>
           {voiceStatus && <div className="voice-status">{voiceStatus}</div>}
@@ -489,13 +612,16 @@ export default function TodoPage() {
       </div>
 
       {todos.length > 0 && (
-        <div className={`recipe-scroll ${recipeCollapsed ? 'collapsed' : 'unfurled'} ${bottling ? 'is-bottling' : ''}`}>
+        <div className={`recipe-scroll ${isQuickMode ? 'quick-list' : ''} ${recipeCollapsed ? 'collapsed' : 'unfurled'} ${bottling ? 'is-bottling' : ''}`}>
           <div className="scroll-head">
             <div>
-              <label className="field">{modeConfig.paper}</label>
-              <div className="muted-note">{modeConfig.note(todos.length)}</div>
+              <div className="scroll-title-line">
+                <label className="field">{isQuickMode ? '今日清单' : modeConfig.paper}</label>
+                <span className="scroll-count-badge" aria-label={`共 ${todos.length} 项`}>{todos.length}</span>
+              </div>
+              <div className="muted-note">{isQuickMode ? '确认后就可以开始。' : modeConfig.note(todos.length)}</div>
             </div>
-            <button
+            {!isQuickMode && <button
               className={`scroll-toggle ${recipeCollapsed ? 'is-rolled' : 'is-open'}`}
               type="button"
               onClick={() => setRecipeCollapsed((v) => !v)}
@@ -507,36 +633,48 @@ export default function TodoPage() {
                 <span />
                 <span />
               </span>
-            </button>
+            </button>}
           </div>
 
-          {recipeCollapsed ? (
+          {!isQuickMode && recipeCollapsed ? (
             <button
-              className="scroll-roll recipe-bottle-stage"
+              className="scroll-roll recipe-counter-stage"
               type="button"
               onClick={bottleRecipe}
               disabled={bottling}
-              aria-label="把配料纸放进瓶子，进入调配酒单"
+              aria-label="把今日清单递交到吧台，进入调配酒单"
             >
-              <span className="bottle-mouth" aria-hidden="true" />
-              <span className="bottle-body" aria-hidden="true">
-                <span className="bottle-glint" />
-                <span className="bottle-liquid" />
+              <span className="counter-window" aria-hidden="true">
+                <span className="counter-arch" />
+                <span className="counter-slot" />
+                <span className="counter-bell" />
               </span>
-              <span className="rolled-paper" aria-hidden="true">
-                <span className="paper-cap left" />
+              <span className="rolled-paper order-ticket" aria-hidden="true">
                 <span className="paper-band" />
-                <span className="paper-cap right" />
               </span>
               <span className="roll-shadow" aria-hidden="true" />
-              <span className="bottle-hint">{bottling ? '放入瓶中…' : '点击把配方放入瓶子'}</span>
+              <span className="counter-hint">{bottling ? '吧台收单中…' : '点击把清单递给吧台'}</span>
             </button>
           ) : (
             <>
               <div className="ingredient-paper">
-                {todos.map((t, index) => (
-                  <div key={t.id} className="ingredient-slip" style={{ '--slip-index': index }}>
-                    <span className="slip-mark" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+                {todos.map((t, index) => {
+                  const tone = getTaskTone(t.taskType)
+                  return (
+                  <div
+                    key={t.id}
+                    className={`ingredient-slip task-tone-${t.taskType || 'fallback'}`}
+                    style={{
+                      '--slip-index': index,
+                      '--task-bg': tone.bg,
+                      '--task-line': tone.line,
+                      '--task-dot': tone.dot,
+                    }}
+                  >
+                    <span className="slip-mark" aria-hidden="true">
+                      <span className="slip-dot" />
+                      <span className="slip-order">{String(index + 1).padStart(2, '0')}</span>
+                    </span>
                     <input
                       className="slip-title"
                       value={t.title}
@@ -544,45 +682,23 @@ export default function TodoPage() {
                       onChange={(e) => dispatch({ type: 'UPDATE_TODO', id: t.id, patch: { title: e.target.value } })}
                     />
                     <div className="slip-time time-adjuster">
-                      <button
-                        className="time-step"
-                        type="button"
-                        aria-label={`第 ${index + 1} 条减少 5 分钟`}
-                        onClick={() => nudgeTodoTime(t, -5)}
-                      >
-                        -
-                      </button>
-                      <input
-                        className="time"
-                        type="range"
-                        min="5"
-                        max="240"
-                        step="5"
+                      <TimeWheel
                         value={t.estimatedTime}
-                        aria-label={`第 ${index + 1} 条预计分钟`}
-                        onChange={(e) => setTodoTime(t, e.target.value)}
+                        label={`第 ${index + 1} 条预计分钟，上下滑动调整`}
+                        onChange={(minutes) => setTodoTime(t, minutes)}
                       />
-                      <button
-                        className="time-step"
-                        type="button"
-                        aria-label={`第 ${index + 1} 条增加 5 分钟`}
-                        onClick={() => nudgeTodoTime(t, 5)}
-                      >
-                        +
-                      </button>
-                      <span className="time-value">{formatDuration(t.estimatedTime)}</span>
                     </div>
                     <button
                       className="btn-ghost slip-delete"
-                      type="button"
                       onClick={() => setDeleteTarget(t)}
+                      type="button"
                       aria-label={`删除第 ${index + 1} 条`}
                       title="移除"
                     >
-                      删
+                      <span aria-hidden="true" />
                     </button>
                   </div>
-                ))}
+                )})}
               </div>
               <div className="btn-row" style={{ marginTop: 12 }}>
                 <div className="spacer" />
@@ -591,7 +707,7 @@ export default function TodoPage() {
                   disabled={!todos.length}
                   onClick={() => dispatch({ type: 'GO', step: 'optimize' })}
                 >
-                  {modeConfig.next}
+                  {isQuickMode ? '开始今天 →' : modeConfig.next}
                 </button>
               </div>
             </>
@@ -600,7 +716,7 @@ export default function TodoPage() {
       )}
 
       <div className="btn-row">
-        <button className="btn-ghost" onClick={() => dispatch({ type: 'GO', step: 'bartender' })}>← 上一步</button>
+        {!isQuickMode && <button className="btn-ghost" onClick={() => dispatch({ type: 'GO', step: 'bartender' })}>← 上一步</button>}
         <div className="spacer" />
       </div>
       {deleteTarget && (

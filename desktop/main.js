@@ -8,11 +8,15 @@ const path = require('path')
 const fs = require('fs')
 
 let win
-let current = { state: 'choosing', bartenderId: 'lemon', selected: false }
+let current = { state: 'idle', bartenderId: 'lemon', selected: false }
 let pendingActions = [] // 桌宠点击产生的动作队列，等网页端拉取
 let petMode = 'normal'
 let dragFollowTimer = null
 let dragFollowState = null
+const NORMAL_WIDTH = 236
+const NORMAL_HEIGHT = 304
+const ISLAND_WIDTH = 236
+const ISLAND_HEIGHT = 60
 
 // 单实例锁，防重复窗口
 if (!app.requestSingleInstanceLock()) {
@@ -54,15 +58,15 @@ function setPetMode(mode) {
   const wa = screen.getPrimaryDisplay().workArea
   const [x, y] = win.getPosition()
   if (petMode === 'island') {
-    const width = 176
-    const height = 78
+    const width = ISLAND_WIDTH
+    const height = ISLAND_HEIGHT
     const nextY = Math.min(Math.max(y, wa.y + 18), wa.y + wa.height - height - 18)
     win.setBounds({ width, height, x: wa.x + wa.width - width - 8, y: nextY })
   } else {
-    const width = 300
-    const height = 390
-    const nextX = Math.round(wa.x + (wa.width - width) / 2)
-    const nextY = Math.round(wa.y + (wa.height - height) / 2)
+    const width = NORMAL_WIDTH
+    const height = NORMAL_HEIGHT
+    const nextX = Math.min(Math.max(x, wa.x + 8), wa.x + wa.width - width - 8)
+    const nextY = Math.min(Math.max(y, wa.y + 8), wa.y + wa.height - height - 8)
     win.setBounds({ width, height, x: nextX, y: nextY })
   }
   savePos()
@@ -103,13 +107,18 @@ function start() {
     }
   }
   const wa = screen.getPrimaryDisplay().workArea
-  const width = 300
-  const height = 390
+  const savedPos = loadPos()
+  const width = NORMAL_WIDTH
+  const height = NORMAL_HEIGHT
+  const defaultX = wa.x + wa.width - width - 22
+  const defaultY = wa.y + wa.height - height - 28
+  const initialX = Math.min(Math.max(savedPos?.x ?? defaultX, wa.x + 8), wa.x + wa.width - width - 8)
+  const initialY = Math.min(Math.max(savedPos?.y ?? defaultY, wa.y + 8), wa.y + wa.height - height - 8)
   win = new BrowserWindow({
     width,
     height,
-    x: Math.round(wa.x + (wa.width - width) / 2),
-    y: Math.round(wa.y + (wa.height - height) / 2),
+    x: Math.round(initialX),
+    y: Math.round(initialY),
     transparent: true,
     frame: false,
     resizable: false,
@@ -221,7 +230,11 @@ function startServer() {
 
 function syncWindowVisibility() {
   if (!win) return
-  const shouldShow = current.state === 'choosing' || current.selected || current.state === 'brewing' || current.state === 'done'
+  const shouldShow =
+    (current.state === 'choosing' && current.allowDesktopChoice) ||
+    current.selected ||
+    current.state === 'brewing' ||
+    current.state === 'done'
   if (shouldShow) win.showInactive()
   else win.hide()
 }

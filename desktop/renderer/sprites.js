@@ -46,7 +46,7 @@ window.IMAGE = {
   lemon: '../../assets/sprites/lemon.png',
   garlic: '../../assets/sprites/garlic.png',
   ginger: '../../assets/sprites/ginger.png',
-  cilantro: '../../assets/sprites/cilantro.svg',
+  cilantro: '../../assets/sprites/cilantro.png',
 }
 
 // 调制手法文案（不点名原料，与网页端一致）

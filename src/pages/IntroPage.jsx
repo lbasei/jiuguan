@@ -1,13 +1,13 @@
-import { useState } from 'react'
 import tavernPanorama from '../../assets/hero/life-kitchen-tavern-panorama.png'
+import { useState } from 'react'
 
-export default function IntroPage({ onStart }) {
+export default function IntroPage({ onQuickStart, onFullStart }) {
   const [entering, setEntering] = useState(false)
 
   const enterTavern = () => {
     if (entering) return
     setEntering(true)
-    window.setTimeout(onStart, 360)
+    window.setTimeout(onFullStart, 360)
   }
 
   return (
@@ -30,12 +30,12 @@ export default function IntroPage({ onStart }) {
         </h1>
       </div>
 
-      <figure className="intro-tavern-portrait" aria-label="Life Kitchen 像素风魔法酒馆全景">
+      <figure className="intro-tavern-portrait" aria-label="Life Kitchen 魔法酒馆全景">
         <img className="tavern-bg" src={tavernPanorama} alt="像素风魔法酒馆里的种种们" draggable="false" />
       </figure>
 
       <div className="intro-actions">
-        <button className="start-spell" onClick={enterTavern} aria-label="进入酒馆">
+        <button className="start-spell primary" onClick={enterTavern} aria-label="进入酒馆">
           <span>进入酒馆</span>
         </button>
       </div>

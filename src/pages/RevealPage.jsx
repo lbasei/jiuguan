@@ -1,12 +1,12 @@
 // 步骤五：饮品生成。第一次展示每件事变成的原料 + 今日特调卡。
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '../store/store.jsx'
 import SpecialCard from '../components/SpecialCard.jsx'
-import RecipeBlueprint from '../components/RecipeBlueprint.jsx'
 import { formatDuration } from '../engine/time.js'
 import { getRecipeVolumeLayers } from '../engine/recipeVolume.js'
 import { getBartender } from '../data/bartenders.js'
+import { fetchCellarStats, fetchPublicCellar, fetchReviewReport, publishDrink } from '../engine/cellarApi.js'
 
 const COMMUNITY_RECIPES = [
   {
@@ -53,7 +53,7 @@ function MixDial({ recipe, score }) {
     <div className="mix-dial" style={{ '--dial-fill': fill }}>
       <div className="dial-core">
         <strong>{score?.total ?? 0}</strong>
-        <span>核分</span>
+        <span>节奏</span>
       </div>
     </div>
   )
@@ -68,9 +68,180 @@ function MiniMeter({ label, value, tone }) {
   )
 }
 
+function ReportUnlocks({ reports = {} }) {
+  const items = [
+    { key: 'day', label: '日报', need: 1 },
+    { key: 'week', label: '周报', need: 3 },
+    { key: 'month', label: '月报', need: 7 },
+    { key: 'year', label: '年报', need: 30 },
+  ]
+  return (
+    <div className="report-unlocks" aria-label="周期复盘">
+      {items.map((item) => {
+        const report = reports[item.key]
+        const count = report?.count || 0
+        const locked = count < item.need
+        return (
+          <div className={`report-unlock ${locked ? 'locked' : 'ready'}`} key={item.key}>
+            <strong>{item.label}</strong>
+            <span>{locked ? `${count}/${item.need}` : '已解锁'}</span>
+            <i style={{ '--fill': `${Math.min(100, Math.max(8, (count / item.need) * 100))}%` }}>
+              <b />
+            </i>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function PlatformStats({ stats }) {
+  if (!stats) return null
+  const locations = stats.activeLocations || []
+  return (
+    <div className="platform-stats" aria-label="酒馆数据">
+      <div>
+        <strong>{stats.usersCount || 0}</strong>
+        <span>来客</span>
+      </div>
+      <div>
+        <strong>{stats.drinksCount || 0}</strong>
+        <span>存杯</span>
+      </div>
+      <div className="location-row">
+        <strong>{locations[0]?.name || '远方'}</strong>
+        <span>{locations.length ? `${locations.length} 个地点` : '等待第一位来客'}</span>
+      </div>
+    </div>
+  )
+}
+
+const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
+
+function monthKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+function dayKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function calendarDays(monthDate) {
+  const year = monthDate.getFullYear()
+  const month = monthDate.getMonth()
+  const first = new Date(year, month, 1)
+  const startOffset = (first.getDay() + 6) % 7
+  const start = new Date(year, month, 1 - startOffset)
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(start)
+    date.setDate(start.getDate() + index)
+    return {
+      date,
+      key: dayKey(date),
+      inMonth: date.getMonth() === month,
+    }
+  })
+}
+
+function dayDrinkMap(items = []) {
+  return items.reduce((map, item) => {
+    if (!item?.date) return map
+    const previous = map.get(item.date)
+    if (!previous || String(item.savedAt || item.date) > String(previous.savedAt || previous.date)) {
+      map.set(item.date, item)
+    }
+    return map
+  }, new Map())
+}
+
+function CellarCalendar({ items, currentCard }) {
+  const collection = useMemo(() => {
+    const all = [...(items || [])]
+    if (currentCard && !all.some((item) => item.date === currentCard.date && item.drinkName === currentCard.drinkName)) {
+      all.unshift({ ...currentCard, savedAt: new Date().toISOString() })
+    }
+    return all
+  }, [items, currentCard])
+  const initialMonth = currentCard?.date ? new Date(`${currentCard.date}T12:00:00`) : new Date()
+  const [monthDate, setMonthDate] = useState(initialMonth)
+  const drinksByDay = useMemo(() => dayDrinkMap(collection), [collection])
+  const visibleDays = useMemo(() => calendarDays(monthDate), [monthDate])
+  const monthLabel = `${monthDate.getFullYear()} 年 ${monthDate.getMonth() + 1} 月`
+  const selected = drinksByDay.get(dayKey(monthDate)) || drinksByDay.get(currentCard?.date) || collection[0]
+
+  const shiftMonth = (dir) => {
+    setMonthDate((date) => new Date(date.getFullYear(), date.getMonth() + dir, 1))
+  }
+
+  const chooseDay = (day) => {
+    setMonthDate(day.date)
+  }
+
+  return (
+    <div className="cellar-calendar">
+      <div className="calendar-head">
+        <button type="button" onClick={() => shiftMonth(-1)} aria-label="上个月">‹</button>
+        <div>
+          <strong>{monthLabel}</strong>
+          <span>每天一份，按日期放回冰柜</span>
+        </div>
+        <button type="button" onClick={() => shiftMonth(1)} aria-label="下个月">›</button>
+      </div>
+
+      <div className="calendar-week">
+        {WEEKDAYS.map((day) => <span key={day}>{day}</span>)}
+      </div>
+
+      <div className="calendar-grid">
+        {visibleDays.map((day) => {
+          const drink = drinksByDay.get(day.key)
+          const isSelected = day.key === dayKey(monthDate)
+          return (
+            <button
+              className={`calendar-cell ${day.inMonth ? '' : 'muted'} ${drink ? 'has-drink' : ''} ${isSelected ? 'selected' : ''}`}
+              key={day.key}
+              type="button"
+              onClick={() => chooseDay(day)}
+            >
+              <span className="calendar-date">{day.date.getDate()}</span>
+              {drink ? (
+                <>
+                  <ColorMini colors={(drink.recipe || []).slice(0, 4).map((r) => r.color)} />
+                  <span className="calendar-stars">{'★'.repeat(drink.report?.score?.stars || 0)}</span>
+                </>
+              ) : (
+                <i className="empty-glass" aria-hidden="true" />
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="calendar-ticket">
+        {selected ? (
+          <>
+            <ColorMini colors={(selected.recipe || []).slice(0, 4).map((r) => r.color)} />
+            <div>
+              <strong>{selected.drinkName}</strong>
+              <span>{selected.date} · {selected.bartender || '种种'}出品 · 完成 {Math.round((selected.completionRate || 0) * 100)}%</span>
+            </div>
+          </>
+        ) : (
+              <span>这个月还没有放进冰柜的出品。</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function RevealPage() {
   const { state, dispatch } = useStore()
-  const [reportOpen, setReportOpen] = useState(false)
+  const [activePanel, setActivePanel] = useState('')
+  const [publicCellar, setPublicCellar] = useState([])
+  const [cellarMessage, setCellarMessage] = useState('')
+  const [syncingCellar, setSyncingCellar] = useState(false)
+  const [periodReports, setPeriodReports] = useState({})
+  const [platformStats, setPlatformStats] = useState(null)
   const card = state.reviewCard
   const report = card?.report || {}
   const bartender = getBartender(state.lockedBartenderId || state.bartenderId, state.customBartenders)
@@ -79,10 +250,44 @@ export default function RevealPage() {
     [card, state.cellar],
   )
 
+  useEffect(() => {
+    fetchPublicCellar()
+      .then(setPublicCellar)
+      .catch(() => setPublicCellar([]))
+    fetchCellarStats()
+      .then(setPlatformStats)
+      .catch(() => setPlatformStats(null))
+  }, [])
+
+  useEffect(() => {
+    const userId = state.userProfile?.id
+    if (!userId) return
+    Promise.all(['day', 'week', 'month', 'year'].map((period) => fetchReviewReport(userId, period).then((report) => [period, report])))
+      .then((entries) => setPeriodReports(Object.fromEntries(entries)))
+      .catch(() => setPeriodReports({}))
+  }, [state.userProfile?.id, syncingCellar])
+
+  const saveToCellar = async () => {
+    if (!card || syncingCellar) return
+    dispatch({ type: 'SAVE_TO_CELLAR' })
+    setSyncingCellar(true)
+    setCellarMessage('正在把这杯放上公共酒架...')
+    try {
+      await publishDrink(card, state.userProfile)
+      const drinks = await fetchPublicCellar()
+      setPublicCellar(drinks)
+      setCellarMessage('已放进冰柜，别人也能看见这份出品。')
+    } catch {
+      setCellarMessage('本地冰柜已保存，公共冷柜暂时没连上。')
+    } finally {
+      setSyncingCellar(false)
+    }
+  }
+
   if (!card) {
     return (
       <div className="card center">
-        今日饮品还没生成。
+        今日出品还没生成。
         <div className="btn-row center">
           <button className="btn-primary" onClick={() => dispatch({ type: 'GO', step: 'optimize' })}>去调配</button>
         </div>
@@ -90,33 +295,47 @@ export default function RevealPage() {
     )
   }
 
-  const cellarPreview = state.cellar?.length ? state.cellar.slice(0, 3) : [card]
   const isEmptyCup = card.completionRate === 0
   const minutes = report.actualTotal || report.completedEstimated || 0
+  const revealTabs = [
+    { key: 'cellar', label: '酒柜' },
+    { key: 'analysis', label: '分析' },
+    { key: 'report', label: '报告' },
+  ]
 
   return (
     <div>
-      <div className="reveal-banner reveal-in">饮品生成<br />你的一天，调成了一杯</div>
+      <div className="reveal-banner reveal-in">{card.bartender} 给你调好了一杯</div>
 
       <div className="reveal-in" style={{ animationDelay: '.1s' }}>
-        <SpecialCard card={card} bartender={bartender} reportOpen={reportOpen} onGenerateReport={() => setReportOpen(true)} />
+        <SpecialCard card={card} bartender={bartender} reportOpen={false} />
       </div>
 
-      {reportOpen && (
-        <>
-          <div className="card reveal-in" style={{ animationDelay: '.08s' }}>
-            <RecipeBlueprint ingredients={state.ingredients} recipe={card.recipe} />
-          </div>
+      <div className="reveal-action-dock reveal-in" style={{ animationDelay: '.16s' }} role="tablist" aria-label="查看今日出品">
+        {revealTabs.map((tab) => (
+          <button
+            className={activePanel === tab.key ? 'active' : ''}
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={activePanel === tab.key}
+            onClick={() => setActivePanel((current) => current === tab.key ? '' : tab.key)}
+          >
+            <i aria-hidden="true" />
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </div>
 
-          <div className="card reveal-in result-dashboard" style={{ animationDelay: '.16s' }}>
+      <div className="reveal-panel-stage">
+        {activePanel === 'analysis' && (
+          <div className="card reveal-in result-dashboard compact-reveal-panel" style={{ animationDelay: '.04s' }}>
             <div className="report-head">
               <div>
-                <label className="field">今日调配仪表盘</label>
-                <div className="report-title">{report.stateProfile?.title || '今日报告'}</div>
+                <label className="field">今日分析</label>
+                <div className="report-title">{report.stateProfile?.title || '今天记录'}</div>
+                <p className="report-summary">{report.stateProfile?.summary || card.comment}</p>
               </div>
-              <button className="btn-ghost cellar-save" onClick={() => dispatch({ type: 'SAVE_TO_CELLAR' })}>
-                {saved ? '已记入酒柜' : '记入酒柜'}
-              </button>
             </div>
 
             <div className="dashboard-board">
@@ -130,7 +349,7 @@ export default function RevealPage() {
 
             {!!report.timeTuning?.length && (
               <div className="report-section">
-                <div className="section-title">时间校准</div>
+                <div className="section-title">时间手感</div>
                 <div className="time-tuning-list">
                   {report.timeTuning.map((item) => (
                     <div className={`time-tuning ${item.direction}`} key={`${item.title}-${item.direction}`}>
@@ -142,11 +361,22 @@ export default function RevealPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {activePanel === 'report' && (
+          <div className="card reveal-in compact-reveal-panel result-dashboard" style={{ animationDelay: '.04s' }}>
+            <div className="report-head">
+              <div>
+                <label className="field">今日报告</label>
+                <div className="report-title">配方揭秘</div>
+              </div>
+            </div>
 
             <div className="report-section">
-              <div className="section-title">明日加料盘</div>
+              <div className="section-title">明天这样做</div>
               <div className="plan-notes visual-notes">
-                {(report.nextPlan || [card.suggestion]).map((note, index) => (
+                {(report.nextPlan || [card.suggestion]).slice(0, 3).map((note, index) => (
                   <div className="plan-note" key={note}>
                     <span className="note-token">{String(index + 1).padStart(2, '0')}</span>
                     <p>{note}</p>
@@ -156,45 +386,49 @@ export default function RevealPage() {
             </div>
 
             <div className={`memory-ticket ${isEmptyCup ? 'empty' : ''}`}>
-              <div className="section-title">酒柜签</div>
+              <div className="section-title">记住这次</div>
               <p>{report.memory || card.comment}</p>
-              <small>存入酒柜后，可以按月翻看自己的管理口味。</small>
+              <small>存进冰柜后，下次会少调几步。</small>
             </div>
           </div>
+        )}
 
-          <div className="card cellar-panel reveal-in" style={{ animationDelay: '.24s' }}>
+        {activePanel === 'cellar' && (
+          <div className="card cellar-panel reveal-in compact-reveal-panel" style={{ animationDelay: '.04s' }}>
             <div className="report-head">
               <div>
-                <label className="field">个人酒柜</label>
+                <label className="field">个人冰柜</label>
               </div>
+              <button className="btn-ghost cellar-save" onClick={saveToCellar} disabled={syncingCellar}>
+                {syncingCellar ? '上架中' : saved ? '已记入酒柜' : '记入酒柜'}
+              </button>
             </div>
+            {cellarMessage && <small className="cellar-message">{cellarMessage}</small>}
 
-            <div className="cellar-shelf">
-              {cellarPreview.map((item) => (
-                <div className="cellar-bottle" key={item.id || item.date}>
-                  <ColorMini colors={(item.recipe || []).slice(0, 4).map((r) => r.color)} />
-                  <strong>{item.drinkName}</strong>
-                  <span>{item.date} · 完成 {Math.round((item.completionRate || 0) * 100)}%</span>
-                </div>
-              ))}
-            </div>
+            <CellarCalendar items={state.cellar || []} currentCard={card} />
+            <ReportUnlocks reports={periodReports} />
+            <PlatformStats stats={platformStats} />
 
             <div className="report-section">
               <div className="section-title">看看别人的酒单</div>
               <div className="community-grid">
-                {COMMUNITY_RECIPES.map((recipe) => (
-                  <button className="community-card" key={recipe.title} type="button">
-                    <ColorMini colors={recipe.colors} />
-                    <strong>{recipe.title}</strong>
-                    <span>{recipe.owner}</span>
-                    <p>{recipe.note}</p>
+                {(publicCellar.length ? publicCellar : COMMUNITY_RECIPES).slice(0, 3).map((recipe) => (
+                  <button className="community-card" key={recipe.id || recipe.title} type="button">
+                    <ColorMini colors={recipe.colors || (recipe.recipe || []).slice(0, 4).map((r) => r.color)} />
+                    <strong>{recipe.drinkName || recipe.title}</strong>
+                    <span>
+                      {recipe.user
+                        ? `${recipe.user.locationLabel || '远方'} · ${recipe.user.name || '无名旅人'}`
+                        : recipe.owner}
+                    </span>
+                    <p>{recipe.note || `${recipe.bartender || '种种'}调出的 ${recipe.stars || 0} 星特调`}</p>
                   </button>
                 ))}
               </div>
             </div>
           </div>
-        </>
-      )}
+        )}
+      </div>
 
       <div className="btn-row">
         <button className="btn-ghost" onClick={() => dispatch({ type: 'GO', step: 'optimize' })}>← 回到调配清单</button>

@@ -84,72 +84,96 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 3) {
   lines.slice(0, maxLines).forEach((row, index) => ctx.fillText(row, x, y + index * lineHeight))
 }
 
+function honorific(profile = {}) {
+  if (profile.gender === 'male') return '先生'
+  if (profile.gender === 'female') return '小姐'
+  return '旅人'
+}
+
+function guestLine(card) {
+  const profile = card.userProfile || {}
+  const place = profile.locationLabel || '远方'
+  const name = profile.name || profile.displayName || '无名'
+  return `来自${place}的${name}${honorific(profile)}`
+}
+
 function drawPosterDrink(ctx, layers, palette) {
   const cx = 450
   const top = 420
-  const glassW = 250
-  const glassH = 245
-  const leftTop = cx - glassW / 2
-  const rightTop = cx + glassW / 2
-  const leftBottom = cx - 82
-  const rightBottom = cx + 82
+  const glassW = 238
+  const glassH = 250
+  const left = cx - glassW / 2
+  const right = cx + glassW / 2
   const bottom = top + glassH
 
   ctx.save()
-  ctx.lineWidth = 5
+  ctx.imageSmoothingEnabled = false
+  ctx.lineWidth = 6
+  ctx.lineJoin = 'miter'
   ctx.strokeStyle = palette.rim
   ctx.fillStyle = 'rgba(255,255,255,.78)'
   ctx.beginPath()
-  ctx.moveTo(leftTop, top)
-  ctx.lineTo(rightTop, top)
-  ctx.lineTo(rightBottom, bottom)
-  ctx.lineTo(leftBottom, bottom)
+  ctx.moveTo(left, top)
+  ctx.lineTo(right, top)
+  ctx.lineTo(right - 18, bottom - 30)
+  ctx.lineTo(right - 42, bottom)
+  ctx.lineTo(left + 42, bottom)
+  ctx.lineTo(left + 18, bottom - 30)
   ctx.closePath()
   ctx.fill()
   ctx.stroke()
 
+  ctx.fillStyle = 'rgba(255,255,255,.38)'
+  ctx.fillRect(left + 28, top + 28, 18, glassH - 76)
+  ctx.fillRect(right - 48, top + 24, 10, 56)
+
   ctx.save()
   ctx.beginPath()
-  ctx.moveTo(leftTop + 18, top + 22)
-  ctx.lineTo(rightTop - 18, top + 22)
-  ctx.lineTo(rightBottom - 12, bottom - 18)
-  ctx.lineTo(leftBottom + 12, bottom - 18)
+  ctx.moveTo(left + 22, top + 28)
+  ctx.lineTo(right - 22, top + 28)
+  ctx.lineTo(right - 56, bottom - 26)
+  ctx.lineTo(left + 56, bottom - 26)
   ctx.closePath()
   ctx.clip()
 
-  let y = bottom - 18
-  const liquidTotal = glassH - 58
+  let y = bottom - 26
+  const liquidTotal = glassH - 68
   layers.forEach((layer) => {
-    const h = Math.max(18, liquidTotal * (layer.heightPercent / 100))
+    const h = Math.round(Math.max(18, liquidTotal * (layer.heightPercent / 100)) / 6) * 6
     ctx.fillStyle = layer.visualColor
-    ctx.fillRect(leftTop + 18, y - h, glassW - 36, h)
+    ctx.fillRect(left + 26, y - h, glassW - 52, h)
     ctx.fillStyle = 'rgba(255,255,255,.26)'
-    ctx.fillRect(leftTop + 18, y - h, glassW - 36, 7)
+    ctx.fillRect(left + 26, y - h, glassW - 52, 8)
+    ctx.fillStyle = 'rgba(255,255,255,.18)'
+    ctx.fillRect(left + 58, y - h + 20, 24, 14)
+    ctx.fillRect(right - 86, y - h + 34, 18, 12)
     y -= h
   })
   ctx.restore()
 
+  ctx.fillStyle = 'rgba(255,255,255,.84)'
   ctx.strokeStyle = palette.rim
-  ctx.lineWidth = 5
-  ctx.beginPath()
-  ctx.moveTo(cx, bottom)
-  ctx.lineTo(cx, bottom + 145)
-  ctx.stroke()
-  ctx.beginPath()
-  ctx.ellipse(cx, bottom + 160, 100, 18, 0, 0, Math.PI * 2)
-  ctx.fillStyle = 'rgba(255,255,255,.78)'
-  ctx.fill()
-  ctx.stroke()
+  ctx.lineWidth = 6
+  ctx.fillRect(cx - 10, bottom - 2, 20, 106)
+  ctx.strokeRect(cx - 10, bottom - 2, 20, 106)
+  ctx.fillRect(cx - 82, bottom + 100, 164, 22)
+  ctx.strokeRect(cx - 82, bottom + 100, 164, 22)
 
   ctx.fillStyle = palette.accent
   ctx.strokeStyle = palette.rim
-  ctx.lineWidth = 4
+  ctx.lineWidth = 5
   ctx.beginPath()
-  ctx.arc(cx + 130, top + 34, 44, -Math.PI / 2, Math.PI / 2)
-  ctx.lineTo(cx + 130, top + 34)
+  ctx.moveTo(cx + 116, top + 18)
+  ctx.lineTo(cx + 166, top + 34)
+  ctx.lineTo(cx + 122, top + 70)
+  ctx.lineTo(cx + 138, top + 40)
   ctx.closePath()
   ctx.fill()
   ctx.stroke()
+
+  ctx.fillStyle = mix(palette.accent, '#ffffff', 0.42)
+  ctx.fillRect(cx + 132, top + 34, 28, 8)
+  ctx.fillRect(cx + 124, top + 50, 22, 7)
 
   ctx.restore()
 }
@@ -207,9 +231,12 @@ export async function shareDrinkPoster(card) {
   ctx.fillStyle = '#6F7FA8'
   ctx.font = '28px Georgia, serif'
   ctx.fillText('Life Kitchen Special', 450, 112)
+  ctx.font = '700 28px Georgia, "Songti SC", serif'
+  ctx.fillStyle = '#6F7FA8'
+  ctx.fillText(`${card.bartender || '种种'} 给你做了一杯`, 450, 152)
   ctx.font = '700 52px Georgia, "Songti SC", serif'
   ctx.fillStyle = '#24445C'
-  ctx.fillText(card.drinkName || '今日特调', 450, 182)
+  ctx.fillText(card.drinkName || '今日特调', 450, 210)
 
   ctx.save()
   ctx.translate(238, 252)
@@ -220,8 +247,13 @@ export async function shareDrinkPoster(card) {
   ctx.fillStyle = '#fff'
   ctx.font = '700 31px Georgia, "Songti SC", serif'
   ctx.textAlign = 'center'
-  ctx.fillText(`${card.bartender || '种种'} 出品`, 130, 42)
+  ctx.fillText('酒馆出品', 130, 42)
   ctx.restore()
+
+  ctx.font = 'italic 23px Georgia, "Songti SC", serif'
+  ctx.fillStyle = 'rgba(36,68,92,.68)'
+  ctx.fillText(`To: ${guestLine(card)}`, 450, 210)
+  ctx.fillText(`From: ${card.bartender || '种种'}`, 450, 238)
 
   drawPosterDrink(ctx, layers, palette)
 

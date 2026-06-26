@@ -6,51 +6,116 @@ import { formatDuration } from './time.js'
 import { getRecipeVolumeLayers } from './recipeVolume.js'
 
 const ROLE_TEXT = {
-  deep_work: '杯底主味，代表今天最需要专注推进的部分。',
-  creative: '香气层，代表需要构思、表达和主动创造的部分。',
-  communication: '气泡层，代表消息、会议和外部协作的流动。',
-  admin: '小料层，代表零散事务和需要顺手归整的部分。',
-  recovery: '缓冲层，代表休息、运动和把状态接回来的部分。',
-  urgent: '辛香层，代表截止、突发和必须立刻处理的部分。',
-  review: '收口层，代表复盘、整理和为下一轮留线索的部分。',
+  deep_work: '主要花在主线推进。',
+  creative: '留了创作和构思。',
+  communication: '沟通协作占了一部分。',
+  admin: '零碎事务比较多。',
+  recovery: '有留恢复时间。',
+  urgent: '有需要立刻处理的事。',
+  review: '最后有收口和整理。',
 }
 
 const BARTENDER_SPECIALS = {
   rosemary: {
-    title: '主茶底压舱配方',
-    method: '先把最重的主线任务放在杯底，杂事只做收边和点缀。',
+    title: '主线压舱',
+    method: '主线优先，杂事收边。',
     bestWith: ['deep_work', 'urgent'],
     caution: '如果小料太多，迷迭香会把它们压到后段集中处理，避免整杯散味。',
   },
   ginger: {
-    title: '十分钟点火配方',
-    method: '先倒入一小口能立刻开始的热姜汁，再进入真正的大块任务。',
+    title: '十分钟点火',
+    method: '先动一下，再进主菜。',
     bestWith: ['urgent', 'deep_work', 'creative'],
     caution: '适合破冰，不适合把所有事情都做成冲刺；后面要补一点缓冲。',
   },
   mint: {
-    title: '薄荷缓冲奶盖',
-    method: '高消耗任务之间加一层恢复奶泡，让节奏不被压力直接打穿。',
+    title: '缓冲奶盖',
+    method: '高耗能后必须留空。',
     bestWith: ['recovery', 'deep_work'],
     caution: '如果主味很浓但没有恢复层，明天需要把休息写进酒单，而不是靠硬扛。',
   },
   lemon: {
-    title: '柠檬清醒开场',
-    method: '用短而明确的第一步把注意力拧回来，再处理最容易发黏的任务。',
+    title: '清醒开场',
+    method: '第一步要短、亮、好入口。',
     bestWith: ['urgent', 'communication', 'creative'],
     caution: '酸味能提神，但不适合一直催；超过两段冲刺后要降速。',
   },
   garlic: {
-    title: '葱蒜边界盐口',
-    method: '把消息、杂事、临时打断集中成固定小料盘，保护整杯的主茶底。',
+    title: '边界盐口',
+    method: '打断集中处理。',
     bestWith: ['admin', 'communication'],
     caution: '如果杯里全是小料，说明今天不是不努力，而是边界被切碎了。',
   },
   cilantro: {
-    title: '香菜随手加料',
-    method: '从最轻的一口开始，允许边做边调整顺序，先让杯子动起来。',
+    title: '随手加料',
+    method: '先从轻的一口开始。',
     bestWith: ['admin', 'recovery', 'creative'],
     caution: '自由度高的时候，要在最后补一个收口，不然方法很难留进酒柜。',
+  },
+}
+
+const BARTENDER_REVIEW_VOICES = {
+  rosemary: {
+    title: '迷迭香把主线留在杯底',
+    line: ({ heaviest, overrun }) =>
+      overrun.length
+        ? `她会把${heaviest?.name || '主线'}往前挪，先做完最重的一口，再让小事排队。`
+        : `她认得出今天最稳的味道：${heaviest?.name || '主线'}够清楚，可以留成明天的开场。`,
+    actions: ({ missing, overrun }) => [
+      overrun.length ? '同类任务预估加 15 分钟' : '明天第一段继续留给主线',
+      missing.length ? '最后补一个 5 分钟收口' : '碎事集中到一个时段',
+    ],
+  },
+  ginger: {
+    title: '姜种种先点火',
+    line: ({ completionRate }) =>
+      completionRate < 0.5 ? '他会把第一步切到小到不能再小，先让今天真的动起来。' : '他喜欢今天这种起步速度，下一杯可以继续从短任务热身。',
+    actions: ({ overrun }) => [
+      '开局只放 10 分钟启动块',
+      overrun.length ? '冲刺后马上加短休息' : '完成后立刻接主任务',
+    ],
+  },
+  mint: {
+    title: '薄荷种种会先看你累不累',
+    line: ({ missing }) =>
+      missing.includes('恢复奶泡') ? '她会把休息写进清单里，不让你靠硬撑把整杯喝完。' : '她觉得今天的节奏没有太冲，适合把缓冲继续保留下来。',
+    actions: ({ overrun }) => [
+      overrun.length ? '长任务后固定休息 10 分钟' : '保留一个喝水或散步点',
+      '晚上别再塞新主线',
+    ],
+  },
+  lemon: {
+    title: '柠檬种种要入口清楚',
+    line: ({ heaviest }) => `她会把${heaviest?.name || '今天的任务'}说短一点，先删掉绕路，再开始。`,
+    actions: ({ overrun }) => [
+      '每个任务只写一个动词',
+      overrun.length ? '超过预估就切下一段' : '先做最清爽的一件',
+    ],
+  },
+  garlic: {
+    title: '葱蒜种种守住边界',
+    line: ({ heaviest }) =>
+      heaviest?.category === 'communication' || heaviest?.category === 'admin'
+        ? '她会把消息和杂事挡在同一个盘子里，不让它们一口一口咬走你。'
+        : '她觉得今天主线还没被切碎，明天继续把打扰收成一盘。',
+    actions: () => ['消息集中两次处理', '深度任务时段不开新入口'],
+  },
+  cilantro: {
+    title: '香菜种种先找顺手入口',
+    line: ({ missing }) =>
+      missing.length ? '他不会逼你照单全收，会先挑一件顺手的，再提醒你最后收一下尾。' : '他觉得今天的自由度刚好，适合把这个入口记下来。',
+    actions: () => ['先做最轻的一件', '结束前留一句复盘'],
+  },
+  osmanthus: {
+    title: '桂花种种慢慢收香',
+    line: () => '她会把今天做成不刺眼的节奏：少一点催促，多一点能留香的收尾。',
+    actions: () => ['保留温和开场', '把复盘写成一句酒签'],
+  },
+  chili: {
+    title: '辣椒种种只点关键火',
+    line: ({ overrun }) =>
+      overrun.length ? '它会把火收回来一点，别让整天都变成冲刺。' : '它会把劲儿用在最关键的那一步，别到处乱烧。',
+    actions: () => ['只给一件事开冲刺', '冲刺后马上降温'],
   },
 }
 
@@ -71,24 +136,24 @@ function sumTime(items) {
 function getSpecialRecipe(bartender, recipe, { isEmptyCup, heaviest, missing, overrun }) {
   if (isEmptyCup) {
     return {
-      title: '还没有提取到稳定配方',
-      method: '今天还没有完成项入杯，所以种种只能先保留空杯样本。',
+      title: '空杯样本',
+      method: '先完成一件小事。',
       fit: '待验证',
-      summary: '先完成一件 10 到 15 分钟的小事，系统才有第一口样本可以提取。',
+      summary: '明天先倒第一层。',
     }
   }
   const mainLayer = heaviest || recipe[0]
   const secondLayer = recipe.find((layer) => layer.category !== mainLayer?.category)
   const mainRatio = Math.round((mainLayer?.ratio || 0) * 100)
-  const secondText = secondLayer ? `，第二层是${secondLayer.name}（${Math.round(secondLayer.ratio * 100)}%）` : ''
-  const method = `${bartender.name} 从今天的记录里提取到：${mainLayer?.name || '主味'}占 ${mainRatio}%${secondText}。${EXTRACTED_ACTIONS[mainLayer?.category] || '先把占比最高的任务类型固定成明天的第一段节奏。'}`
+  const secondText = secondLayer ? ` + ${secondLayer.name}` : ''
+  const method = `${mainLayer?.name || '主味'} ${mainRatio}%${secondText}`
   const summary = overrun.length
-    ? '下一杯要先调时间火候：同类任务按实际用时多留 20%，别让计划太满。'
+    ? '时间加 20%'
     : missing.length
-    ? `下一杯要补${missing.join('、')}，让比例不只靠完成任务，也能接住状态。`
-    : '这套比例可以先存为基础配方，下次只需要根据临时变化微调顺序和浓度。'
+    ? `补 ${missing[0]}`
+    : '可存为固定配方'
   return {
-    title: `${mainLayer?.name || '今日主味'}提取方案`,
+    title: `${mainLayer?.name || '今日主味'}主导`,
     method,
     fit: missing.length || overrun.length ? '可调优' : '可复用',
     summary,
@@ -100,29 +165,29 @@ function getManagementRelation({ recipe, bartender, heaviest, missing, overrun, 
     return {
       title: '方法还没有被验证',
       points: [
-        '今天没有完成项入杯，所以还不能判断管理方法是否有效。',
-        '下一次先做一个 10 到 15 分钟的小任务，让系统有第一口样本。',
+        '空杯',
+        '先做 10 分钟',
       ],
     }
   }
   const categories = new Set(recipe.map((r) => r.category))
   const points = []
   if (heaviest?.category === 'admin' || heaviest?.category === 'communication') {
-    points.push('杯身被沟通和杂事占得较多，说明管理重点不是更努力，而是减少切换和集中处理入口。')
+    points.push('碎事偏多')
   } else if (heaviest?.category === 'deep_work' || heaviest?.category === 'creative') {
-    points.push('主味来自深度推进，今天的方法适合做主线任务；要避免后半段因为恢复不足而变苦。')
+    points.push('主线清楚')
   } else if (heaviest?.category === 'urgent') {
-    points.push('辛香层偏明显，说明今天靠临场冲刺推进；可以保留启动感，但不要让紧急感成为默认节奏。')
+    points.push('冲刺偏多')
   }
-  if (!categories.has('recovery')) points.push('杯里缺恢复层，明天建议把休息当成正式原料，而不是等累了再补。')
-  if (!categories.has('review')) points.push('缺少收口层，方法很难沉淀到酒柜；最后 5 分钟复盘会让同一杯下次更好调。')
-  if (overrun.length || timeAccuracy < 0.65) points.push('时间手感偏松，下一次同类任务的预估可以按实际用时上调 20%。')
-  if (!overrun.length && underrun.length) points.push('有些任务比计划更快完成，说明这类原料可以缩短预估，把省下的时间留给恢复或收口。')
+  if (!categories.has('recovery')) points.push('缺恢复层')
+  if (!categories.has('review')) points.push('缺收口')
+  if (overrun.length || timeAccuracy < 0.65) points.push('时间偏紧')
+  if (!overrun.length && underrun.length) points.push('预估可缩短')
   if (completionRate >= 0.8 && timeAccuracy >= 0.75 && !missing.length) {
-    points.push('这套顺序和比例已经比较稳定，可以保存成固定饮品，下次直接从酒柜调用。')
+    points.push('可存酒柜')
   }
   return {
-    title: '饮品和方法的关系',
+    title: '今天的节奏',
     points: points.slice(0, 3),
   }
 }
@@ -131,30 +196,30 @@ function makeStateProfile({ isEmptyCup, completionRate, timeAccuracy, overrun, m
   if (isEmptyCup) {
     return {
       title: '空杯状态',
-      summary: '今天还没有真正完成的片段进入杯中。先不急着评价好坏，重点是找到一个最容易开始的入口。',
+      summary: '今天还没有完成记录。明天只放一件小事，先让杯底有第一层。',
     }
   }
   if (completionRate >= 0.8 && timeAccuracy >= 0.75 && !missing.length) {
     return {
       title: '稳定出杯',
-      summary: '完成度和时间感都比较稳，今天的安排有清楚的主线，也留住了收尾。',
+      summary: '完成度和时间感都稳。这个顺序可以存起来，下次直接沿用。',
     }
   }
   if (overrun.length >= 2 || timeAccuracy < 0.55) {
     return {
-      title: '火候偏急',
-      summary: '有几件事比预计更耗时，说明今天的杯子不是问题太多，而是时间估计偏乐观。',
+      title: '时间偏紧',
+      summary: '有几件事比预想更久。下次同类任务先加一点余量。',
     }
   }
   if (missing.length) {
     return {
       title: '缺少缓冲',
-      summary: `主味是${heaviest?.name || '今日主料'}，但恢复或复盘不足，容易做完事情之后感觉没有真正落地。`,
+      summary: `主线是${heaviest?.name || '今天的任务'}，但缓冲不够。明天别把休息放到最后才想起。`,
     }
   }
   return {
     title: '结构成形',
-    summary: '今天的任务已经被调成比较清楚的层次，下一步适合把可复用的方法记下来。',
+    summary: '今天的顺序已经成形。下一次可以少调几步，直接从这杯开始。',
   }
 }
 
@@ -201,6 +266,81 @@ function makeFlavorTuning({ recipe, timeAccuracy, completionRate, missing, overr
   ].map((item, index) => ({ ...item, advice: tuning[index] || tuning[0] }))
 }
 
+function bartenderKey(bartender = {}) {
+  const text = `${bartender.id || ''} ${bartender.plant || ''} ${bartender.name || ''}`.toLowerCase()
+  if (/rosemary|迷迭香/.test(text)) return 'rosemary'
+  if (/ginger|姜/.test(text)) return 'ginger'
+  if (/mint|薄荷/.test(text)) return 'mint'
+  if (/lemon|柠檬/.test(text)) return 'lemon'
+  if (/garlic|葱|蒜/.test(text)) return 'garlic'
+  if (/cilantro|香菜/.test(text)) return 'cilantro'
+  if (/osmanthus|桂花/.test(text)) return 'osmanthus'
+  if (/chili|pepper|辣椒/.test(text)) return 'chili'
+  return 'mint'
+}
+
+function makeBartenderAdvice({ bartender, heaviest, missing, overrun, completionRate, timeAccuracy }) {
+  const voice = BARTENDER_REVIEW_VOICES[bartenderKey(bartender)] || BARTENDER_REVIEW_VOICES.mint
+  const context = { heaviest, missing, overrun, completionRate, timeAccuracy }
+  const actions = typeof voice.actions === 'function' ? voice.actions(context) : voice.actions
+  return {
+    title: voice.title,
+    line: voice.line(context),
+    actions: actions.slice(0, 2),
+  }
+}
+
+function makeProgressCharts({ completionRate, timeAccuracy, completedCount, totalCount, evoTips, overrun, underrun, isEmptyCup }) {
+  const evoBase = isEmptyCup ? 8 : 42 + Math.min(28, evoTips.length * 9)
+  const timingValue = Math.round(timeAccuracy * 100)
+  const drift = overrun.length + underrun.length
+  return [
+    {
+      key: 'completion',
+      label: '完成',
+      value: Math.round(completionRate * 100),
+      detail: `${completedCount}/${Math.max(1, totalCount)}`,
+      tone: 'mint',
+    },
+    {
+      key: 'timing',
+      label: '时间贴合',
+      value: timingValue,
+      detail: drift ? `${drift} 处校准` : '手感稳定',
+      tone: 'gold',
+    },
+    {
+      key: 'evo',
+      label: '记忆',
+      value: Math.min(96, evoBase + Math.round(completionRate * 18) + (timingValue > 80 ? 8 : 0)),
+      detail: evoTips.length ? `${evoTips.length} 条习惯` : '待记录',
+      tone: 'pink',
+    },
+  ]
+}
+
+function makeHabitMemory({ recipe, heaviest, missing, overrun, underrun, completedCount, isEmptyCup }) {
+  if (isEmptyCup) {
+    return {
+      title: '还没记入口味',
+      chips: ['先完成一件', '记录启动时间', '明天再调'],
+      note: '空杯不评价，只记一个入口。',
+    }
+  }
+  const chips = []
+  if (heaviest?.name) chips.push(`${heaviest.name}优先`)
+  if (overrun.length) chips.push('同类加时')
+  if (underrun.length) chips.push('预估可降')
+  if (missing.length) chips.push('补缓冲')
+  if (!chips.length) chips.push('可存固定杯')
+  return {
+    title: '下次默认记住',
+    chips: chips.slice(0, 4),
+    note: `已记住 ${completedCount} 个完成样本。下次会先按这杯的顺序起步。`,
+    palette: recipe.slice(0, 4).map((r) => r.color),
+  }
+}
+
 function makeReport({ todos, recipe, records, completionRate, timeAccuracy, isEmptyCup, missing, overrun, underrun, heaviest, bartender }) {
   const completedRecords = records.filter((r) => r.status === 'completed')
   const skippedRecords = records.filter((r) => r.status === 'skipped')
@@ -234,10 +374,10 @@ function makeReport({ todos, recipe, records, completionRate, timeAccuracy, isEm
   })
 
   const blueprintNotes = isEmptyCup
-    ? ['杯子仍是空的，所以今天不生成比例分析。先完成一件很小的事，再回来生成第一层味道。']
+    ? ['今天还没有完成记录。先完成一件很小的事。']
     : topVolumeLayers.map((layer, index) => {
-        const role = ROLE_TEXT[layer.category] || '这一层代表今天被你投入时间的部分。'
-        return `${index + 1}. ${layer.name}倒入 ${layer.volumeLabel}。${role}`
+        const role = ROLE_TEXT[layer.category] || '今天有一部分时间放在这里。'
+        return `${layer.name} ${layer.volumeLabel}，${role}`
       })
 
   if (!isEmptyCup && missing.length) {
@@ -289,6 +429,26 @@ function makeReport({ todos, recipe, records, completionRate, timeAccuracy, isEm
     managementRelation,
     nextPlan: nextPlan.slice(0, 4),
     evoTips,
+    bartenderAdvice: makeBartenderAdvice({ bartender, heaviest, missing, overrun, completionRate, timeAccuracy }),
+    progressCharts: makeProgressCharts({
+      completionRate,
+      timeAccuracy,
+      completedCount: completedRecords.length,
+      totalCount: todos.length,
+      evoTips,
+      overrun,
+      underrun,
+      isEmptyCup,
+    }),
+    habitMemory: makeHabitMemory({
+      recipe,
+      heaviest,
+      missing,
+      overrun,
+      underrun,
+      completedCount: completedRecords.length,
+      isEmptyCup,
+    }),
     timeTuning: [...overrun, ...underrun].slice(0, 4).map((r) => {
       const todo = todos.find((t) => t.id === r.todoId)
       const diff = r.actualTime - r.estimatedTime
@@ -303,8 +463,8 @@ function makeReport({ todos, recipe, records, completionRate, timeAccuracy, isEm
       }
     }),
     memory: isEmptyCup
-      ? '今天的酒签：杯子还空着，但吧台已经开灯。明天先完成一件最小的事。'
-      : `今天的酒签：${stateProfile.title}。主要味道来自${heaviest?.name || '今日主料'}，完成了 ${completedRecords.length} 件事，适合把这个节奏留作参考。`,
+      ? '空杯也会留下记录：明天先完成一件最小的事。'
+      : `${stateProfile.title}：完成 ${completedRecords.length} 件事，主线是${heaviest?.name || '今天的任务'}。`,
   }
 }
 

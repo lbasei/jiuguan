@@ -5,8 +5,9 @@ import { useStore } from '../store/store.jsx'
 import { BARTENDERS } from '../data/bartenders.js'
 import PixelSprite from '../components/PixelSprite.jsx'
 import { CREATURE } from '../components/sprites.js'
-import { pushPetState } from '../engine/petBridge.js'
+import { ensurePetState, pushPetState } from '../engine/petBridge.js'
 import { generateCustomPetImage } from '../engine/imageGen.js'
+import { requestSeedanceMotion } from '../engine/seedance.js'
 
 export const BODY = {
   rosemary: '#6F8A5B',
@@ -22,11 +23,31 @@ const accentFor = (bartender) => {
   return '#58BDB8'
 }
 
+const BADGE_LABELS = {
+  rosemary: '控场',
+  ginger: '开局',
+  mint: '缓冲',
+  lemon: '清醒',
+  garlic: '护场',
+  cilantro: '随性',
+  chili: '冲刺',
+  osmanthus: '优雅',
+}
+
 const formatClock = (date) =>
   date.toLocaleTimeString('zh-CN', {
     hour: '2-digit',
     minute: '2-digit',
+    second: '2-digit',
     hour12: false,
+  })
+
+const formatDate = (date) =>
+  date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
   })
 
 const BASE_METHOD_SLOTS = [
@@ -57,6 +78,7 @@ export default function BartenderPage() {
   const startIdx = Math.max(0, methodSlots.findIndex((b) => b.id === state.bartenderId))
   const [idx, setIdx] = useState(startIdx === -1 ? 0 : startIdx)
   const [summoning, setSummoning] = useState(false)
+  const [summonBartender, setSummonBartender] = useState(null)
   const [armedId, setArmedId] = useState(null)
   const [customOpen, setCustomOpen] = useState(false)
   const [customForm, setCustomForm] = useState({
@@ -68,12 +90,20 @@ export default function BartenderPage() {
   const [generating, setGenerating] = useState(false)
   const [generateError, setGenerateError] = useState('')
   const [currentTime, setCurrentTime] = useState(() => formatClock(new Date()))
+  const [currentDate, setCurrentDate] = useState(() => formatDate(new Date()))
+  const [petSummonNote, setPetSummonNote] = useState('')
+  const [summonMotion, setSummonMotion] = useState({ videoUrl: '' })
+  const [arrowFlash, setArrowFlash] = useState('')
   const dragX = useRef(null)
   const summonTimer = useRef(null)
+  const arrowTimer = useRef(null)
 
   const go = (dir) => {
     setArmedId(null)
     setCustomOpen(false)
+    setArrowFlash(dir < 0 ? 'left' : 'right')
+    clearTimeout(arrowTimer.current)
+    arrowTimer.current = setTimeout(() => setArrowFlash(''), 220)
     setIdx((i) => (i + dir + methodSlots.length) % methodSlots.length)
   }
   const cur = methodSlots[idx] || methodSlots[0]
@@ -81,19 +111,28 @@ export default function BartenderPage() {
   const canAct = canSummon || cur.helper || cur.customCreator
 
   useEffect(() => {
-    return () => clearTimeout(summonTimer.current)
+    return () => {
+      clearTimeout(summonTimer.current)
+      clearTimeout(arrowTimer.current)
+    }
   }, [])
 
   useEffect(() => {
-    const tick = () => setCurrentTime(formatClock(new Date()))
+    const tick = () => {
+      const now = new Date()
+      setCurrentTime(formatClock(now))
+      setCurrentDate(formatDate(now))
+    }
     tick()
-    const id = setInterval(tick, 30000)
+    const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [])
 
   useEffect(() => {
     if (summoning) return
-    if (canSummon) pushPetState({ state: 'choosing', bartenderId: cur.id, selected: false, schedule: [], customBartender: cur.custom ? cur : undefined })
+    if (canSummon && state.lockedBartenderId) {
+      pushPetState({ state: 'idle', bartenderId: state.lockedBartenderId, selected: true, schedule: [], customBartender: cur.custom ? cur : undefined })
+    }
   }, [cur.id, canSummon, summoning])
 
   useEffect(() => {
@@ -131,6 +170,21 @@ export default function BartenderPage() {
     setIdx(nextRealIndex)
   }
 
+  const summonDesktopPet = async () => {
+    if (!canSummon) {
+      setPetSummonNote('先选定一只种种，再把它召唤到桌面。')
+      return
+    }
+    const ok = await ensurePetState({
+      state: 'idle',
+      bartenderId: cur.id,
+      selected: true,
+      schedule: [],
+      customBartender: cur.custom ? cur : undefined,
+    })
+    setPetSummonNote(ok ? '种种已经在桌面等你。' : '桌面种种暂时没有出现，先打开桌宠预览窗口。')
+  }
+
   const summon = () => {
     if (summoning) return
     if (cur.customCreator) {
@@ -142,12 +196,17 @@ export default function BartenderPage() {
       return
     }
     if (!canSummon) return
+    setSummonBartender(cur)
     setSummoning(true)
+    setSummonMotion({ videoUrl: '' })
+    requestSeedanceMotion({ scene: 'walk_to_bar', bartender: cur, referenceImage: cur.image }).then((motion) => {
+      setSummonMotion({ videoUrl: motion.videoUrl || '' })
+    })
     dispatch({ type: 'SET_BARTENDER', id: cur.id })
-    pushPetState({ state: 'idle', bartenderId: cur.id, selected: true, schedule: [], customBartender: cur.custom ? cur : undefined })
+    ensurePetState({ state: 'idle', bartenderId: cur.id, selected: true, schedule: [], customBartender: cur.custom ? cur : undefined })
     summonTimer.current = setTimeout(() => {
       dispatch({ type: 'GO', step: 'todos' })
-    }, 1550)
+    }, 850)
   }
 
   const touchHero = (event) => {
@@ -163,7 +222,6 @@ export default function BartenderPage() {
     if (!canSummon) return
     if (event?.detail > 1) {
       setArmedId(cur.id)
-      pushPetState({ state: 'choosing', bartenderId: cur.id, selected: false, schedule: [], customBartender: cur.custom ? cur : undefined })
       return
     }
     if (armedId === cur.id) {
@@ -171,7 +229,6 @@ export default function BartenderPage() {
       return
     }
     setArmedId(cur.id)
-    pushPetState({ state: 'choosing', bartenderId: cur.id, selected: false, schedule: [], customBartender: cur.custom ? cur : undefined })
   }
 
   const updateCustom = (key, value) => {
@@ -201,11 +258,16 @@ export default function BartenderPage() {
       setCustomOpen(false)
       setArmedId(null)
       setIdx(BARTENDERS.length)
+      setSummonBartender(bartender)
       setSummoning(true)
-      pushPetState({ state: 'idle', bartenderId: id, selected: true, schedule: [], customBartender: bartender })
+      setSummonMotion({ videoUrl: '' })
+      requestSeedanceMotion({ scene: 'walk_to_bar', bartender, referenceImage: bartender.image }).then((motion) => {
+        setSummonMotion({ videoUrl: motion.videoUrl || '' })
+      })
+      ensurePetState({ state: 'idle', bartenderId: id, selected: true, schedule: [], customBartender: bartender })
       summonTimer.current = setTimeout(() => {
         dispatch({ type: 'GO', step: 'todos' })
-      }, 1550)
+      }, 850)
     } catch (error) {
       setGenerateError(error.message || '生成失败，检查一下 OpenAI 图片接口。')
     } finally {
@@ -223,20 +285,18 @@ export default function BartenderPage() {
 
   return (
     <div className="summon-page">
-      <h2 className="title summon-title">召唤种种</h2>
-      <div className="summon-clock" aria-live="polite">
+      <div className="summon-clock" aria-live="polite" aria-label={`现在时间 ${currentTime}`}>
         <span>{currentTime}</span>
-        <em>邀请哪只种种和你一起喝一杯？</em>
+        <em>{currentDate}</em>
       </div>
-      <p className="subtitle summon-subtitle">{summoning ? `${cur.name} 正在开心地赶来吧台。` : '左右切换，或按 A / D；双击种种选中，再点一次确认。'}</p>
-      <div className="summon-guide" aria-label="选择方法">
-        <span>A</span>
-        <em>切换种种</em>
-        <span>D</span>
-      </div>
+      <p className="subtitle summon-subtitle">{summoning ? `${cur.name} 正在赶来吧台。` : '你想邀请哪只种种一起喝一杯？'}</p>
+      <button className="pet-summon-link" type="button" onClick={summonDesktopPet}>
+        把种种召唤到桌面
+      </button>
+      {petSummonNote && <div className="pet-summon-note">{petSummonNote}</div>}
 
       <div className="picker" onPointerDown={onDown} onPointerUp={onUp}>
-        <button className="picker-arrow" disabled={summoning} onClick={() => go(-1)} aria-label="上一只">
+        <button className={`picker-arrow ${arrowFlash === 'left' ? 'flash' : ''}`} disabled={summoning} onClick={() => go(-1)} aria-label="上一只">
           <span className="pixel-arrow left" aria-hidden="true" />
         </button>
 
@@ -262,9 +322,10 @@ export default function BartenderPage() {
             <span className="happy-spark s2" aria-hidden="true" />
             <span className="happy-spark s3" aria-hidden="true" />
             <span className="confirm-orbit" aria-hidden="true" />
-            <span className="summon-warrant" aria-hidden="true">
-              <span className="warrant-check" />
-            </span>
+            {!cur.helper && <span className={`role-badge badge-${cur.id}`} aria-hidden="true">
+              <b>{BADGE_LABELS[cur.id] || '专属'}</b>
+              <i />
+            </span>}
           </div>
           <div className="hero-name">{cur.name}</div>
           <div className="hero-info">
@@ -274,7 +335,7 @@ export default function BartenderPage() {
           </div>
         </div>
 
-        <button className="picker-arrow" disabled={summoning} onClick={() => go(1)} aria-label="下一只">
+        <button className={`picker-arrow ${arrowFlash === 'right' ? 'flash' : ''}`} disabled={summoning} onClick={() => go(1)} aria-label="下一只">
           <span className="pixel-arrow right" aria-hidden="true" />
         </button>
       </div>
@@ -340,9 +401,30 @@ export default function BartenderPage() {
       )}
 
       {summoning && (
-        <div className="summon-loading" role="status" aria-live="polite">
-          <span className="loading-ring" aria-hidden="true" />
-          <span>召唤中</span>
+        <div className="summon-journey" role="status" aria-live="polite">
+          <div className="journey-rail" aria-hidden="true">
+            <span className="journey-door left" />
+            <span className="journey-door right" />
+            <span className="journey-floor f1" />
+            <span className="journey-floor f2" />
+            <span className="journey-floor f3" />
+            <span className="journey-spark j1" />
+            <span className="journey-spark j2" />
+            <span className="journey-spark j3" />
+            <div className="journey-pet">
+              {(summonBartender || cur).image ? (
+                <img src={(summonBartender || cur).image} alt="" />
+              ) : (
+                <PixelSprite sprite={CREATURE} scale={5} colors={{ b: BODY[(summonBartender || cur).id] || '#7FBFA6' }} />
+              )}
+            </div>
+            <div className="journey-bar">
+              <span className="bar-counter" />
+              <span className="bar-cup" />
+              <span className="bar-lamp" />
+            </div>
+          </div>
+          <span className="journey-copy">种种赶往吧台</span>
         </div>
       )}
 

@@ -22,6 +22,29 @@ const ACTION = {
 }
 const mmss = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 
+const PLAN_TONES = {
+  deep_work: '#8FE4DF',
+  creative: '#FFD978',
+  communication: '#9DD3FF',
+  admin: '#F8B1D4',
+  recovery: '#FFF3B8',
+  urgent: '#FF9FBD',
+  review: '#9BE8B6',
+  fallback: '#BDEFD0',
+}
+
+function currentRoundedMinute() {
+  const now = new Date()
+  return Math.ceil((now.getHours() * 60 + now.getMinutes()) / 5) * 5
+}
+
+function clock(min) {
+  const safe = ((min % 1440) + 1440) % 1440
+  const h = Math.floor(safe / 60)
+  const m = safe % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
 export default function ExecutePage() {
   const { state, dispatch } = useStore()
   const selectedBartenderId = state.lockedBartenderId || state.bartenderId
@@ -33,6 +56,7 @@ export default function ExecutePage() {
   const [confirmGenerate, setConfirmGenerate] = useState(false)
   const timer = useRef(null)
   const executeStartTime = useRef(Date.now())
+  const planStartMinute = useRef(currentRoundedMinute())
   const lastCompleteTime = useRef(executeStartTime.current)
   const activeStartedAt = useRef(null)
   const consumedActionKeys = useRef(new Set())
@@ -64,40 +88,47 @@ export default function ExecutePage() {
       consumedActionKeys.current.add(key)
       completeTask(action.todoId, action.completedAt)
     })
-  }, []) // eslint-disable-line
+  }, [state.order, state.records, activeId]) // eslint-disable-line
+
+  useEffect(() => {
+    return onPetAction((action) => {
+      if (action.type !== 'undo' || !action.todoId) return
+      undoTask(action.todoId)
+    })
+  }, [state.order, state.records, activeId]) // eslint-disable-line
 
   const active = state.order.find((t) => t.id === activeId)
   const durSec = active ? active.estimatedTime * 60 : 0
   const isOverPlan = active ? elapsed > durSec : false
 
-  function buildSchedule() {
+  function buildSchedule(records = state.records) {
     return state.order.map((t) => ({
       id: t.id,
       title: t.title,
       category: t.taskType,
       taskType: t.taskType,
       estimatedTime: t.estimatedTime,
-      status: state.records[t.id]?.status || 'pending',
+      status: records[t.id]?.status || 'pending',
     }))
   }
 
-  function buildIdlePayload() {
+  function buildIdlePayload(records = state.records) {
     return {
       state: 'idle',
       bartenderId: petBartenderIdRef.current,
       selected: true,
       customBartender: customPet,
-      schedule: buildSchedule(),
+      schedule: buildSchedule(records),
     }
   }
 
-  function buildDonePayload() {
+  function buildDonePayload(records = state.records) {
     return {
       state: 'done',
       bartenderId: petBartenderIdRef.current,
       selected: true,
       customBartender: customPet,
-      schedule: buildSchedule(),
+      schedule: buildSchedule(records),
     }
   }
 
@@ -112,6 +143,13 @@ export default function ExecutePage() {
       durationSec: t.estimatedTime * 60,
       schedule: buildSchedule(),
     }
+  }
+
+  function shouldAutoFinalize(records) {
+    if (!state.order.length) return false
+    const touched = state.order.every((t) => records[t.id]?.status)
+    const completed = state.order.some((t) => records[t.id]?.status === 'completed')
+    return touched && completed
   }
 
   useEffect(() => {
@@ -130,7 +168,11 @@ export default function ExecutePage() {
     const t = state.order.find((x) => x.id === todoId)
     if (!t) return
     const actualMin = computeActualMin(todoId, completedAt)
-    dispatch({ type: 'SET_RECORD', todoId, record: { status: 'completed', actualTime: actualMin, completedAt } })
+    const nextRecords = {
+      ...state.records,
+      [todoId]: { ...state.records[todoId], status: 'completed', actualTime: actualMin, completedAt },
+    }
+    dispatch({ type: 'SET_RECORD', todoId, record: nextRecords[todoId] })
     lastCompleteTime.current = completedAt
 
     // 如果当前 active 正好是这个任务，清空 active
@@ -142,6 +184,9 @@ export default function ExecutePage() {
 
     // 同步下一状态给桌宠
     syncNextState(todoId)
+    if (shouldAutoFinalize(nextRecords)) {
+      dispatch({ type: 'FINALIZE' })
+    }
   }
 
   function syncNextState(extraCompletedId) {
@@ -159,6 +204,18 @@ export default function ExecutePage() {
     pushPetState(payloadRef.current)
   }
 
+  function undoTask(todoId) {
+    if (!todoId || activeId) return
+    const target = state.order.find((t) => t.id === todoId)
+    if (!target || statusOf(target) !== 'completed') return
+    const records = { ...state.records }
+    delete records[todoId]
+    dispatch({ type: 'CLEAR_RECORD', todoId })
+    lastCompleteTime.current = Date.now()
+    payloadRef.current = buildIdlePayload(records)
+    pushPetState(payloadRef.current)
+  }
+
   function start(t) {
     setActiveId(t.id)
     setElapsed(0)
@@ -172,21 +229,35 @@ export default function ExecutePage() {
     const min = actualMin ?? Math.max(1, Math.round(elapsed / 60))
     const completedAt = Date.now()
     const id = activeId
-    dispatch({ type: 'SET_RECORD', todoId: activeId, record: { status: 'completed', actualTime: min, completedAt } })
+    const nextRecords = {
+      ...state.records,
+      [id]: { ...state.records[id], status: 'completed', actualTime: min, completedAt },
+    }
+    dispatch({ type: 'SET_RECORD', todoId: id, record: nextRecords[id] })
     lastCompleteTime.current = completedAt
     setActiveId(null)
     setElapsed(0)
     activeStartedAt.current = null
     syncNextState(id)
+    if (shouldAutoFinalize(nextRecords)) {
+      dispatch({ type: 'FINALIZE' })
+    }
   }
 
   function skip() {
     const id = activeId
-    dispatch({ type: 'SET_RECORD', todoId: activeId, record: { status: 'skipped' } })
+    const nextRecords = {
+      ...state.records,
+      [id]: { ...state.records[id], status: 'skipped' },
+    }
+    dispatch({ type: 'SET_RECORD', todoId: id, record: nextRecords[id] })
     setActiveId(null)
     setElapsed(0)
     activeStartedAt.current = null
     syncNextState(id)
+    if (shouldAutoFinalize(nextRecords)) {
+      dispatch({ type: 'FINALIZE' })
+    }
   }
 
   function requestFinalize() {
@@ -211,13 +282,48 @@ export default function ExecutePage() {
   const allTouched = state.order.every((t) => statusOf(t))
   const completedCount = state.order.filter((t) => statusOf(t) === 'completed').length
   const hasCompleted = completedCount > 0
+  const executionPlan = state.order.reduce((items, task, index) => {
+    const start = index === 0 ? planStartMinute.current : items[index - 1].end
+    const end = start + Math.max(1, task.estimatedTime || 1)
+    items.push({ task, start, end, tone: PLAN_TONES[task.taskType] || PLAN_TONES.fallback })
+    return items
+  }, [])
 
   return (
     <div>
       <h2 className="title">精灵调配中</h2>
       <p className="subtitle" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        时间表只是酒单。今天先做哪一项，就点哪一项开始计时。
+        时间表只是酒单，今天先做哪一项，就点哪一项开始计时。
       </p>
+
+      <div className="execution-timetable" aria-label="吧台时间表">
+        <div className="timetable-head">
+          <strong>吧台时间表</strong>
+          <span>{completedCount}/{state.order.length} 完成 · 可跳选</span>
+        </div>
+        <div className="timetable-track">
+          {executionPlan.map(({ task, start: itemStart, end, tone }, index) => {
+            const st = statusOf(task)
+            const isCurrent = activeId === task.id
+            return (
+              <button
+                key={task.id}
+                type="button"
+                className={`time-card ${st === 'completed' ? 'done' : st === 'skipped' ? 'skipped' : ''} ${isCurrent ? 'current' : ''}`}
+                style={{ '--time-tone': tone }}
+                disabled={!!activeId || st === 'completed' || st === 'skipped'}
+                onClick={() => start(task)}
+                title={activeId ? '先结束当前计时' : st ? '已记录' : '点击开始这一项'}
+                aria-label={`第 ${index + 1} 项，${clock(itemStart)} 到 ${clock(end)}，${task.title}`}
+              >
+                <i aria-hidden="true">{String(index + 1).padStart(2, '0')}</i>
+                <span>{clock(itemStart)}-{clock(end)}</span>
+                <strong>{task.title}</strong>
+              </button>
+            )
+          })}
+        </div>
+      </div>
 
       {active && (
         <div className="brew-stage">
@@ -253,7 +359,11 @@ export default function ExecutePage() {
         {state.order.map((t, i) => {
           const st = statusOf(t)
           return (
-            <div key={t.id} className={`exec-row ${st === 'completed' ? 'done' : ''}`}>
+            <div
+              key={t.id}
+              className={`exec-row ${st === 'completed' ? 'done' : ''} ${st === 'skipped' ? 'skipped' : ''} ${activeId === t.id ? 'current' : ''}`}
+              style={{ '--time-tone': PLAN_TONES[t.taskType] || PLAN_TONES.fallback }}
+            >
               <span className="idx">{i + 1}</span>
               <div className="et">
                 <div className="ettitle">{t.title}</div>
@@ -277,7 +387,7 @@ export default function ExecutePage() {
         <button className="btn-ghost" onClick={() => dispatch({ type: 'GO', step: 'optimize' })}>← 上一步</button>
         <div className="spacer" />
         <button className="btn-primary" onClick={requestFinalize}>
-          {hasCompleted ? (allTouched ? '生成今日饮品 ✦' : '直接调配成饮品') : '生成空杯报告'}
+          {hasCompleted ? '喝一杯' : '留一只空杯'}
         </button>
       </div>
 
@@ -287,13 +397,13 @@ export default function ExecutePage() {
             <div className="confirm-title">{hasCompleted ? '还有事项没有完成' : '还没有完成的事项'}</div>
             <p>
               {hasCompleted
-                ? '种种可以直接把目前的进度调配成今日饮品。未完成的事项会在最后报告里标为未完成，不会被算作已完成。'
-                : '现在杯底还没有完成的心事片段，所以不会生成饮品，只会得到一只空杯和一份未完成报告。'}
+                ? '还没打勾的会留在清单里，不会算作完成。'
+                : '还没有完成项，先留一只空杯。'}
             </p>
             <div className="btn-row">
               <button className="btn-ghost" onClick={() => setConfirmGenerate(false)}>再看看清单</button>
               <div className="spacer" />
-              <button className="btn-primary" onClick={finalizeNow}>{hasCompleted ? '确认直接调配' : '确认生成空杯'}</button>
+              <button className="btn-primary" onClick={finalizeNow}>{hasCompleted ? '喝一杯' : '留下空杯'}</button>
             </div>
           </div>
         </div>
