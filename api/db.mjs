@@ -136,6 +136,34 @@ function aggregateReport(drinks = [], period = 'day') {
   }
 }
 
+function aggregateStats(db) {
+  const users = Object.values(db.users || {})
+  const locationMap = new Map()
+  for (const user of users) {
+    const label = user.locationLabel || '远方'
+    locationMap.set(label, (locationMap.get(label) || 0) + 1)
+  }
+  return {
+    usersCount: users.length,
+    drinksCount: db.drinks.length,
+    sharesCount: db.shares.length,
+    activeLocations: [...locationMap.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8),
+    latestUsers: users
+      .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
+      .slice(0, 6)
+      .map((user) => ({
+        id: user.id,
+        name: user.name,
+        gender: user.gender,
+        locationLabel: user.locationLabel,
+        updatedAt: user.updatedAt,
+      })),
+  }
+}
+
 async function proxySeedance(body = {}) {
   const apiKey = process.env.SEEDANCE_API_KEY || process.env.ARK_API_KEY || ''
   const apiUrl = process.env.SEEDANCE_API_URL || ''
@@ -221,6 +249,12 @@ export async function handleApiRequest(req, res) {
       const source = userId ? db.drinks.filter((drink) => drink.userId === userId) : db.drinks
       const drinks = source.slice(0, 60).map(publicDrink)
       sendJson(res, 200, { drinks })
+      return true
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/stats') {
+      const db = await readDb()
+      sendJson(res, 200, { stats: aggregateStats(db) })
       return true
     }
 

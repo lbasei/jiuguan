@@ -6,6 +6,7 @@ import { getBartender } from '../data/bartenders.js'
 import { extractIngredients, aggregateRecipe } from '../engine/extract.js'
 import { orderTodos, nameDrink, judgeRecipe, adviseManagement } from '../engine/plan.js'
 import { applyExperience } from '../engine/evolve.js'
+import { EVOMAP_EXPERIENCES } from '../data/evomap.js'
 import { buildReviewCard } from '../engine/review.js'
 
 const STORAGE_KEY = 'life-kitchen-v2'
@@ -28,12 +29,26 @@ function normalizeProfile(profile = {}) {
   }
 }
 
+function chooseVesselForRecipe(recipe = [], mode = 'daily') {
+  if (!recipe.length) return 'highball'
+  const cats = recipe.map((r) => r.category)
+  const top = cats[0]
+  if (mode === 'long_goal') return 'orb'
+  if (cats.includes('creative')) return 'coupe'
+  if (cats.includes('recovery')) return 'orb'
+  if (top === 'communication') return 'wine'
+  if (top === 'urgent') return 'rocks'
+  if (top === 'admin') return 'tart'
+  return ['highball', 'coupe', 'orb', 'rocks'][recipe.length % 4]
+}
+
 // 流程：选小精灵 → 倒待办 → 小精灵优化 → 执行 → 揭晓
 // 原料/茶底/特调全程隐藏，直到 reveal 才揭晓（保留惊喜）。
 export const STEPS = ['bartender', 'todos', 'optimize', 'execute', 'reveal']
 
 const initial = {
   step: 'bartender',
+  workflowMode: 'quick',
   bartenderId: 'lemon',
   lockedBartenderId: null, // 用户选定后锁定，全程不变
   bartenderNote: '',
@@ -68,10 +83,32 @@ function recompute(state) {
   const order = state.manualSorted && state.order.length === state.todos.length
     ? state.order
     : orderTodos(state.todos, state.strategy)
-  const drinkName = nameDrink(recipe)
+  const drinkName = nameDrink(recipe, { bartender, mode: state.assistantMode, todos: state.todos, date: state.today })
   const judge = judgeRecipe(recipe, bartender)
   const advice = adviseManagement(state.todos, bartender)
   return { ...state, ingredients, recipe, order, drinkName, judge, advice }
+}
+
+function applyAbsorbedExperiences(baseState, absorbedIds = []) {
+  const bartender = getBartender(baseState.bartenderId, baseState.customBartenders)
+  let nextState = { ...baseState, absorbed: [] }
+  absorbedIds.forEach((id) => {
+    const exp = EVOMAP_EXPERIENCES.find((item) => item.id === id)
+    if (!exp) return
+    const res = applyExperience(exp, nextState.recipe, bartender)
+    nextState = {
+      ...nextState,
+      recipe: res.recipe,
+      strategy: res.newStrategy,
+      order: orderTodos(nextState.todos, res.newStrategy),
+      manualSorted: false,
+      drinkName: nameDrink(res.recipe, { bartender, mode: nextState.assistantMode, todos: nextState.todos, date: nextState.today }),
+      judge: res.judge,
+      advice: adviseManagement(nextState.todos, bartender),
+      absorbed: [...new Set([...nextState.absorbed, exp.id])],
+    }
+  })
+  return nextState
 }
 
 function reducer(state, action) {
@@ -95,6 +132,9 @@ function reducer(state, action) {
 
     case 'SET_USER_PROFILE':
       return { ...state, userProfile: normalizeProfile({ ...(state.userProfile || {}), ...(action.profile || {}) }) }
+
+    case 'SET_WORKFLOW_MODE':
+      return { ...state, workflowMode: action.mode === 'full' ? 'full' : 'quick' }
 
     case 'ADD_CUSTOM_BARTENDER': {
       const bartender = action.bartender
@@ -139,11 +179,16 @@ function reducer(state, action) {
         strategy: newStrategy,
         order,
         manualSorted: false,
-        drinkName: nameDrink(res.recipe),
+        drinkName: nameDrink(res.recipe, { bartender: getBartender(state.bartenderId, state.customBartenders), mode: state.assistantMode, todos: state.todos, date: state.today }),
         judge: res.judge,
         advice: adviseManagement(state.todos, getBartender(state.bartenderId, state.customBartenders)),
         absorbed: [...new Set([...state.absorbed, action.exp.id])],
       }
+    }
+
+    case 'UNABSORB': {
+      const remaining = state.absorbed.filter((id) => id !== action.id)
+      return applyAbsorbedExperiences(recompute({ ...state, absorbed: [] }), remaining)
     }
 
     case 'MOVE_ORDER': {
@@ -188,7 +233,7 @@ function reducer(state, action) {
       const completedTodos = state.todos.filter((t) => completedIds.has(t.id))
       const finalIngredients = extractIngredients(completedTodos)
       const finalRecipe = aggregateRecipe(finalIngredients)
-      const finalDrinkName = finalRecipe.length ? nameDrink(finalRecipe) : '空杯'
+      const finalDrinkName = finalRecipe.length ? nameDrink(finalRecipe, { bartender, mode: state.assistantMode, todos: completedTodos, date: state.today }) : '空杯'
       const reviewCard = buildReviewCard({
         date: state.today,
         todos: state.todos,
@@ -200,7 +245,7 @@ function reducer(state, action) {
         drinkName: finalDrinkName,
         records,
       })
-      reviewCard.vessel = state.drinkVessel || 'highball'
+      reviewCard.vessel = state.customVesselLabel ? (state.drinkVessel || 'custom') : chooseVesselForRecipe(finalRecipe, state.assistantMode)
       reviewCard.customVesselLabel = state.customVesselLabel || ''
       reviewCard.userProfile = state.userProfile
       return { ...state, reviewCard, ingredients: finalIngredients, recipe: finalRecipe, drinkName: finalDrinkName, step: 'reveal' }
@@ -226,6 +271,7 @@ function reducer(state, action) {
         cellar: state.cellar,
         userProfile: state.userProfile,
         customBartenders: state.customBartenders,
+        workflowMode: state.workflowMode || 'quick',
         today: new Date().toISOString().slice(0, 10),
       }
 

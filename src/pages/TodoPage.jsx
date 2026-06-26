@@ -58,7 +58,7 @@ const MODE_ICONS = {
   long_goal: longGoalModeIcon,
 }
 
-const TIME_PRESETS = [15, 25, 45, 60]
+const TIME_PRESETS = [15, 25, 45]
 
 const TASK_TONES = {
   deep_work: { bg: '#E4F7F4', line: '#8BCDC7', dot: '#5FB9B4' },
@@ -76,8 +76,6 @@ function getTaskTone(taskType) {
 }
 
 function TimeWheel({ value, label, onChange }) {
-  const drag = useRef({ y: 0, carry: 0, value: Number(value || 30), active: false })
-  const wheelCarry = useRef(0)
   const minutes = Number(value || 30)
   const [draft, setDraft] = useState(String(minutes))
   const clamp = (next) => Math.max(1, Math.min(240, Math.round(next)))
@@ -86,62 +84,11 @@ function TimeWheel({ value, label, onChange }) {
     setDraft(String(safe))
     onChange(safe)
   }
-  const pad = (n) => String(n).padStart(2, '0')
-  const values = [minutes - 1, minutes, minutes + 1].map((n) => clamp(n))
   const nudge = (delta) => set(minutes + delta)
 
   useEffect(() => {
     setDraft(String(minutes))
   }, [minutes])
-
-  const onPointerDown = (event) => {
-    drag.current = { y: event.clientY, carry: 0, value: minutes, active: true }
-    event.currentTarget.setPointerCapture?.(event.pointerId)
-  }
-
-  const onPointerMove = (event) => {
-    if (!event.currentTarget.hasPointerCapture?.(event.pointerId)) return
-    const dy = event.clientY - drag.current.y
-    const total = drag.current.carry + dy
-    const steps = Math.trunc(total / 26)
-    if (!steps) return
-    drag.current.value = clamp(drag.current.value - steps)
-    set(drag.current.value)
-    drag.current = { y: event.clientY, carry: total - steps * 26, value: drag.current.value, active: true }
-  }
-
-  const onPointerUp = (event) => {
-    event.currentTarget.releasePointerCapture?.(event.pointerId)
-    drag.current.active = false
-  }
-
-  const onWheel = (event) => {
-    event.preventDefault()
-    wheelCarry.current += event.deltaY
-    if (Math.abs(wheelCarry.current) < 80) return
-    const step = wheelCarry.current > 0 ? -1 : 1
-    wheelCarry.current = 0
-    set(minutes + step)
-  }
-
-  const onKeyDown = (event) => {
-    if (event.key === 'ArrowUp') {
-      event.preventDefault()
-      set(minutes + 1)
-    }
-    if (event.key === 'ArrowDown') {
-      event.preventDefault()
-      set(minutes - 1)
-    }
-    if (event.key === 'PageUp') {
-      event.preventDefault()
-      set(minutes + 10)
-    }
-    if (event.key === 'PageDown') {
-      event.preventDefault()
-      set(minutes - 10)
-    }
-  }
 
   const commitDraft = () => {
     const next = Number(draft)
@@ -201,35 +148,6 @@ function TimeWheel({ value, label, onChange }) {
             {preset}
           </button>
         ))}
-      </div>
-      <div className="time-wheel-stack">
-        <button type="button" className="counter-step up" aria-label={`${label} 加一分钟`} onClick={() => nudge(1)}>
-          <span />
-        </button>
-        <div
-          className="time-wheel"
-          role="spinbutton"
-          tabIndex={0}
-          aria-label={label}
-          aria-valuemin={1}
-          aria-valuemax={240}
-          aria-valuenow={minutes}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-          onWheel={onWheel}
-          onKeyDown={onKeyDown}
-        >
-          <span className="wheel-number ghost">{pad(values[0])}</span>
-          <span className="wheel-number current">{pad(minutes)}</span>
-          <span className="wheel-number ghost">{pad(values[2])}</span>
-          <span className="wheel-unit">min</span>
-          <span className="wheel-ticks" aria-hidden="true" />
-        </div>
-        <button type="button" className="counter-step down" aria-label={`${label} 减一分钟`} onClick={() => nudge(-1)}>
-          <span />
-        </button>
       </div>
     </div>
   )
@@ -421,7 +339,9 @@ export default function TodoPage() {
   const [bottling, setBottling] = useState(false)
   const [parseMeta, setParseMeta] = useState(null)
   const [modeMotion, setModeMotion] = useState({ videoUrl: '', loading: false })
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const mode = state.assistantMode || 'daily'
+  const isQuickMode = state.workflowMode !== 'full'
   const modeConfig = ASSISTANT_MODES[mode] || ASSISTANT_MODES.daily
   const recognitionRef = useRef(null)
   const mediaRecorderRef = useRef(null)
@@ -611,10 +531,10 @@ export default function TodoPage() {
 
   return (
     <div>
-      <h2 className="title">{modeConfig.title}</h2>
-      <p className="subtitle">{modeConfig.subtitle}</p>
+      <h2 className="title">{isQuickMode ? '今天要做什么？' : modeConfig.title}</h2>
+      <p className="subtitle">{isQuickMode ? '写一段话就好，我会整理成能直接执行的清单。' : modeConfig.subtitle}</p>
 
-      <div className="assistant-mode-tabs" role="tablist" aria-label="选择种种助理模式">
+      {!isQuickMode && <div className="assistant-mode-tabs" role="tablist" aria-label="选择种种助理模式">
         {Object.entries(ASSISTANT_MODES).map(([key, item]) => (
           <button
             key={key}
@@ -633,10 +553,10 @@ export default function TodoPage() {
             <span>{key === 'daily' ? '安排今天' : key === 'free_time' ? '用好空档' : '拆长期目标'}</span>
           </button>
         ))}
-      </div>
+      </div>}
 
-      <div className="talk-seat">
-        <div className={`bar-talk mode-${mode}`}>
+      <div className={`talk-seat ${isQuickMode ? 'quick-talk-seat' : ''}`}>
+        {!isQuickMode && <div className={`bar-talk mode-${mode}`}>
           <div className="bar-back" aria-hidden="true">
             <span />
             <span />
@@ -659,10 +579,10 @@ export default function TodoPage() {
             )}
           </div>
           <div className="bar-counter" aria-hidden="true" />
-        </div>
+        </div>}
 
         <div className="talk-card">
-          <label className="field">{modeConfig.field}</label>
+          <label className="field">{isQuickMode ? '今天的事' : modeConfig.field}</label>
           <textarea
             placeholder={modeConfig.placeholder}
             value={text}
@@ -675,7 +595,7 @@ export default function TodoPage() {
             <button className="btn-ghost" onClick={() => setText(modeConfig.placeholder)}>用示例</button>
             <div className="spacer" />
             <button className="btn-primary" onClick={parse} disabled={loading}>
-              {loading ? '整理中…' : todos.length ? modeConfig.redo : modeConfig.action}
+              {loading ? '整理中…' : todos.length ? '重新整理' : '整理清单'}
             </button>
           </div>
           {voiceStatus && <div className="voice-status">{voiceStatus}</div>}
@@ -692,13 +612,16 @@ export default function TodoPage() {
       </div>
 
       {todos.length > 0 && (
-        <div className={`recipe-scroll ${recipeCollapsed ? 'collapsed' : 'unfurled'} ${bottling ? 'is-bottling' : ''}`}>
+        <div className={`recipe-scroll ${isQuickMode ? 'quick-list' : ''} ${recipeCollapsed ? 'collapsed' : 'unfurled'} ${bottling ? 'is-bottling' : ''}`}>
           <div className="scroll-head">
             <div>
-              <label className="field">{modeConfig.paper}</label>
-              <div className="muted-note">{modeConfig.note(todos.length)}</div>
+              <div className="scroll-title-line">
+                <label className="field">{isQuickMode ? '今日清单' : modeConfig.paper}</label>
+                <span className="scroll-count-badge" aria-label={`共 ${todos.length} 项`}>{todos.length}</span>
+              </div>
+              <div className="muted-note">{isQuickMode ? '确认后就可以开始。' : modeConfig.note(todos.length)}</div>
             </div>
-            <button
+            {!isQuickMode && <button
               className={`scroll-toggle ${recipeCollapsed ? 'is-rolled' : 'is-open'}`}
               type="button"
               onClick={() => setRecipeCollapsed((v) => !v)}
@@ -710,10 +633,10 @@ export default function TodoPage() {
                 <span />
                 <span />
               </span>
-            </button>
+            </button>}
           </div>
 
-          {recipeCollapsed ? (
+          {!isQuickMode && recipeCollapsed ? (
             <button
               className="scroll-roll recipe-counter-stage"
               type="button"
@@ -765,7 +688,15 @@ export default function TodoPage() {
                         onChange={(minutes) => setTodoTime(t, minutes)}
                       />
                     </div>
-                    <button className="btn-ghost slip-delete" onClick={() => dispatch({ type: 'REMOVE_TODO', id: t.id })}>删</button>
+                    <button
+                      className="btn-ghost slip-delete"
+                      onClick={() => setDeleteTarget(t)}
+                      type="button"
+                      aria-label={`删除第 ${index + 1} 条`}
+                      title="移除"
+                    >
+                      <span aria-hidden="true" />
+                    </button>
                   </div>
                 )})}
               </div>
@@ -776,7 +707,7 @@ export default function TodoPage() {
                   disabled={!todos.length}
                   onClick={() => dispatch({ type: 'GO', step: 'optimize' })}
                 >
-                  {modeConfig.next}
+                  {isQuickMode ? '开始今天 →' : modeConfig.next}
                 </button>
               </div>
             </>
@@ -785,9 +716,32 @@ export default function TodoPage() {
       )}
 
       <div className="btn-row">
-        <button className="btn-ghost" onClick={() => dispatch({ type: 'GO', step: 'bartender' })}>← 上一步</button>
+        {!isQuickMode && <button className="btn-ghost" onClick={() => dispatch({ type: 'GO', step: 'bartender' })}>← 上一步</button>}
         <div className="spacer" />
       </div>
+      {deleteTarget && (
+        <div className="confirm-panel" role="dialog" aria-modal="true" aria-label="确认删除事项">
+          <div className="confirm-card delete-confirm-card">
+            <div className="confirm-title">删除这条事项？</div>
+            <p>删除后会从今日配料纸里移除，当前顺序和预估时间不会保留。这个操作不能恢复。</p>
+            <div className="delete-preview">{deleteTarget.title}</div>
+            <div className="btn-row">
+              <button className="btn-ghost" type="button" onClick={() => setDeleteTarget(null)}>取消</button>
+              <div className="spacer" />
+              <button
+                className="btn-primary danger-action"
+                type="button"
+                onClick={() => {
+                  dispatch({ type: 'REMOVE_TODO', id: deleteTarget.id })
+                  setDeleteTarget(null)
+                }}
+              >
+                确认删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

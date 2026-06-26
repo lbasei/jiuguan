@@ -12,6 +12,39 @@ function splitClauses(text) {
     .filter((s) => s.length >= 2)
 }
 
+function uniqFragments(fragments) {
+  const seen = new Set()
+  return fragments
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 2)
+    .filter((s) => {
+      const key = s.replace(/[，。！？!?、\s]/g, '')
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+}
+
+// 语音输入经常是一大段口语，单纯按逗号切会把真正事项切散。
+// 这里额外从整段话里抓"对象 + 要做什么"的组合，优先保留可勾选动作。
+function extractActionPhrases(text) {
+  const raw = String(text || '').replace(/\s+/g, '')
+  const patterns = [
+    /([^，。；;！？!?]{1,18}?(?:消息|微信|邮件|私信|通知|信息))(?:要|得|需要|还没|没)?(回|回复)/g,
+    /(回|回复|联系|约|打电话给)([^，。；;！？!?]{1,18})/g,
+    /([^，。；;！？!?]{1,20}?(?:截图|资料|材料|文件|票据|账单|快递))(?:要|得|需要|还没|没)?(找|整理|处理|寄|取)/g,
+    /(找|整理|处理|提交|上传|下载)([^，。；;！？!?]{1,22}?(?:截图|资料|材料|文件|票据|账单|报告|方案|文档|表|代码|需求|页面|简历))/g,
+    /(写|改|修改|做|完成|推进|设计|复盘|检查|测试|复习|背|练)([^，。；;！？!?]{1,24}?(?:作业|论文|报告|方案|文档|设定表|表|课题|需求|页面|代码|稿|视频|作品集|简历|题))/g,
+    /([^，。；;！？!?]{1,20}?(?:作业|论文|报告|方案|文档|设定表|表|课题|需求|页面|代码|稿|作品集|简历))(?:一直)?(?:挂在心上|惦记|没弄完|没处理|还没弄|还没做|卡着|卡住了?)/g,
+    /([^，。；;！？!?]{0,12}?(?:运动|训练|复盘|会议|讨论|开会|沟通))(\d+\s*(?:分钟|min|小时|h)|半小时|一小时|两小时)?/g,
+  ]
+  const hits = []
+  patterns.forEach((pattern) => {
+    for (const match of raw.matchAll(pattern)) hits.push(match[0])
+  })
+  return uniqFragments(hits)
+}
+
 function detectType(clause) {
   const lower = clause.toLowerCase()
   if (/(讨论|沟通|联系|回复|消息|邮件|开会|会议|对接)/.test(lower)) return 'communication'
@@ -55,7 +88,9 @@ function isProbablyTask(clause) {
   const objectHints = /(作业|论文|报告|方案|文档|表|课|题|邮件|消息|会议|代码|设计|稿|图|视频|音频|材料|资料|账单|快递|运动|训练|复盘|项目|需求|接口|页面|简历)/
   const pureTime = /^(上午|下午|晚上|中午|早上|今晚|明天|后天|周[一二三四五六日天]|星期[一二三四五六日天]|\d{1,2}点|\d{1,3}(分钟|min|小时|h)|半小时|一小时)+$/
   const pureEmotion = /^(累|困|烦|焦虑|开心|难受|崩溃|低落|不想干|没精神|压力大|卡住|很乱|太乱|好烦|有点烦|有点累|emo)+$/
-  return !pureTime.test(cleaned) && !pureEmotion.test(cleaned) && (actionWords.test(cleaned) || objectHints.test(cleaned))
+  const vagueAdvice = /^(能不能|可以不可以|不知道|想知道|我有一些|有一些|如果|假设|希望|感觉|觉得|想被|怎么|怎么办|如何).{0,18}(安排|管理|照顾|使用|规划|做什么|干嘛)?$/
+  const pureBackground = /^(今天|最近|现在)?(状态|心情|脑子|事情)?(很|有点|特别|太)?(乱|累|烦|焦虑|空|碎|卡|迷茫)$/
+  return !pureTime.test(cleaned) && !pureEmotion.test(cleaned) && !pureBackground.test(cleaned) && !vagueAdvice.test(cleaned) && (actionWords.test(cleaned) || objectHints.test(cleaned))
 }
 
 function stripTimeWords(title) {
@@ -83,15 +118,16 @@ function deriveImplicitAction(clause) {
 
 function cleanTaskTitle(title) {
   const stripped = stripTimeWords(title)
-    .replace(/^(我|今天|现在|其实|想|要|得|还|得要|需要|然后|另外)+/, '')
+    .replace(/^(我|今天|现在|其实|想|要|得|还|得要|需要|然后|另外|可能|感觉|觉得|就是|那个|这个|帮我)+/, '')
     .replace(/^(有点|很|太|特别)?(累|烦|焦虑|乱|低落|emo|没精神)(但|但是|不过|也)?/, '')
-    .replace(/^(我|今天|现在|其实|还是|还要|还得|想要|想把|想|需要|得|要|把|去|再|先)+/, '')
-    .replace(/^(一件|一个|一下|点|些)+/, '')
+    .replace(/^(我|今天|现在|其实|还是|还要|还得|想要|想把|想|需要|得|要|把|去|再|先|可能|感觉|觉得|就是|那个|这个|帮我)+/, '')
+    .replace(/^(一件|一个|一下|一点|比较|点|些)+/, '')
     .replace(/(一直)?(挂在心上|惦记|放心不下|没弄完|没处理|没回|还没弄|还没做|卡着|卡住了?)$/, '')
     .replace(/也?(要|得|没|还没)?(回|回复)$/, '')
     .replace(/也?(要|得|没|还没)?(找|找一下|处理|处理一下|整理|整理一下|弄|弄一下)$/, '')
     .replace(/还没(改完|写完|做完|弄完|处理完)$/, '')
     .replace(/(改完|写完|做完|弄完|处理完)$/, '')
+    .replace(/[要得需还]+$/, '')
     .replace(/也$/, '')
     .replace(/^(能|可以|最好能|最好可以)/, '')
     .replace(/一下/g, '')
@@ -107,7 +143,8 @@ function cleanTaskTitle(title) {
 }
 
 export function parseTodos(text) {
-  const clauses = splitClauses(text)
+  const clauses = uniqFragments([...extractActionPhrases(text), ...splitClauses(text)])
+  const seen = new Set()
   return clauses.filter(isProbablyTask).map((title, i) => {
     const taskType = detectType(title)
     const clean = cleanTaskTitle(title) || title
@@ -122,5 +159,10 @@ export function parseTodos(text) {
       mustDo: MUST_KEYWORDS.some((w) => title.includes(w)) || detectPriority(title) === 'high',
       status: 'pending',
     }
+  }).filter((todo) => {
+    const key = todo.title.replace(/[，。！？!?、\s]/g, '')
+    if (!key || seen.has(key)) return false
+    seen.add(key)
+    return true
   })
 }

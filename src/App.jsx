@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react'
 import { pushPetState, startActionPoll, stopActionPoll, onPetAction } from './engine/petBridge.js'
 import IntroPage from './pages/IntroPage.jsx'
 import GuestProfilePage from './pages/GuestProfilePage.jsx'
-import LoadingPage from './pages/LoadingPage.jsx'
 import BartenderPage from './pages/BartenderPage.jsx'
 import TodoPage from './pages/TodoPage.jsx'
 import OptimizePage from './pages/OptimizePage.jsx'
@@ -36,13 +35,21 @@ export default function App() {
   const selectedCustomBartender = state.customBartenders?.find((b) => b.id === state.lockedBartenderId)
 
   const openGuestProfile = () => {
+    dispatch({ type: 'SET_WORKFLOW_MODE', mode: 'full' })
     setIntroStage('guest')
   }
 
-  const startIntro = () => {
-    dispatch({ type: 'GO', step: 'bartender' })
-    setIntroStage('loading')
-    setTimeout(() => setIntroStage('app'), 1450)
+  const startIntro = (mode = 'full') => {
+    dispatch({ type: 'SET_WORKFLOW_MODE', mode })
+    if (mode === 'quick') {
+      const id = state.lockedBartenderId || state.bartenderId || 'lemon'
+      if (!state.lockedBartenderId) dispatch({ type: 'SET_BARTENDER', id })
+      dispatch({ type: 'SET_ASSISTANT_MODE', mode: 'daily' })
+      dispatch({ type: 'GO', step: 'todos' })
+    } else {
+      dispatch({ type: 'GO', step: 'bartender' })
+    }
+    setIntroStage('app')
   }
 
   useEffect(() => {
@@ -84,23 +91,21 @@ export default function App() {
     }
   }, [dispatch, introStage, state.step, state.customBartenders])
 
-  if (introStage === 'intro') return <IntroPage onStart={openGuestProfile} />
+  if (introStage === 'intro') return <IntroPage onQuickStart={() => startIntro('quick')} onFullStart={() => startIntro('full')} />
   if (introStage === 'guest') return <GuestProfilePage onStart={startIntro} />
-  if (introStage === 'loading') return <LoadingPage />
 
   return (
     <div className={`app step-${state.step}`}>
       {showFlow && (
         <div className="topbar">
           <div className="brand">
-            Life Kitchen<small>进化酒馆</small>
+            Life Kitchen
           </div>
         </div>
       )}
 
       {showFlow && (
         <div className="steps brew-path" aria-label="饮品生成流程">
-          <div className="flow-caption">今日调饮流程</div>
           {STEPS.map((s, i) => {
             const meta = STEP_META[s]
             const stepState = s === state.step ? 'current' : i < curIdx ? 'passed' : 'upcoming'

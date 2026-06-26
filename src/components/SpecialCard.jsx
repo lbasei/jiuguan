@@ -1,19 +1,14 @@
 // 今日特调卡（可收藏）。饮品生成页主角，像游戏结算一样展示今日饮品。
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import RecipeBar from './RecipeBar.jsx'
 import { formatDuration } from '../engine/time.js'
 import { getRecipeVolumeLayers } from '../engine/recipeVolume.js'
 import { shareDrinkPoster } from '../engine/sharePoster.js'
+import { generateDrinkPixelCard } from '../engine/imageGen.js'
 
 const COOL_CATEGORIES = new Set(['communication', 'review', 'recovery'])
 const WARM_CATEGORIES = new Set(['deep_work', 'creative', 'urgent', 'admin'])
-const MODE_LABELS = {
-  daily: '今日调酒',
-  free_time: '空闲小酌',
-  long_goal: '长期酿造',
-}
-
 const DESSERT_VESSELS = new Set(['cake', 'tart', 'snack'])
 
 function honorific(profile = {}) {
@@ -25,7 +20,7 @@ function honorific(profile = {}) {
 function guestLine(profile = {}) {
   const place = profile.locationLabel || profile.locationName || '远方'
   const name = profile.name || profile.displayName || '无名'
-  return `To 来自${place}的${name}${honorific(profile)}`
+  return `来自${place}的${name}${honorific(profile)}`
 }
 
 function drinkTone(layers) {
@@ -189,8 +184,8 @@ function ManagementTuning({ items = [] }) {
   if (!items.length) return null
   return (
     <div className="management-tuning" aria-label="下次管理调优">
-      <div className="tuning-title">下次怎么排会更顺</div>
-      {items.map((item) => (
+      <div className="tuning-title">下次微调</div>
+      {items.slice(0, 2).map((item) => (
         <div className={`tuning-row ${item.key}`} key={item.key}>
           <div className="tuning-head">
             <strong>{item.label}</strong>
@@ -303,46 +298,95 @@ function HabitMemoryCard({ memory }) {
 export default function SpecialCard({ card, bartender, reportOpen = false, onGenerateReport }) {
   const [sharing, setSharing] = useState(false)
   const [shareMessage, setShareMessage] = useState('')
+  const [pixelCardUrl, setPixelCardUrl] = useState('')
+  const [pixelCardStatus, setPixelCardStatus] = useState('')
   const isEmptyCup = !card.recipe?.length || card.completionRate === 0
   const report = card.report || {}
   const score = report.score || { total: 0, stars: 0, parts: { completion: 0, timing: 0, balance: 0 } }
   const done = report.doneSummary || []
   const evoTips = report.evoTips || []
-  const specialRecipe = report.specialRecipe
-  const managementRelation = report.managementRelation
   const profile = card.userProfile || {}
+  const productType = DESSERT_VESSELS.has(card.vessel) ? '甜点' : '特调'
+  const makerName = card.bartender || bartender?.name || '种种'
   const generatePoster = async () => {
     if (sharing) return
     setSharing(true)
     setShareMessage('')
     try {
+      if (pixelCardUrl) {
+        const res = await fetch(pixelCardUrl)
+        const blob = await res.blob()
+        const file = new File([blob], `life-kitchen-${Date.now()}.png`, { type: blob.type || 'image/png' })
+        if (navigator.share && navigator.canShare?.({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: card.drinkName || 'Life Kitchen 今日特调',
+            text: '我的今日管理饮品出杯了。',
+          })
+          setShareMessage('已经递出邀请')
+        } else {
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = file.name
+          document.body.appendChild(a)
+          a.click()
+          a.remove()
+          URL.revokeObjectURL(url)
+          setShareMessage('请客卡已备好')
+        }
+        return
+      }
       const result = await shareDrinkPoster(card)
-      setShareMessage(result.mode === 'shared' ? '分享面板已打开' : '朋友圈图已下载')
+      setShareMessage(result.mode === 'shared' ? '已经递出邀请' : '请客卡已备好')
     } catch (error) {
       setShareMessage(error?.name === 'AbortError' ? '已取消分享' : '生成失败，再点一次试试')
     } finally {
       setSharing(false)
     }
   }
+  const generatePixelCard = async () => {
+    if (pixelCardStatus === 'loading') return
+    setPixelCardStatus('loading')
+    try {
+      const url = await generateDrinkPixelCard({ card, bartender })
+      setPixelCardUrl(url)
+      setPixelCardStatus('done')
+    } catch {
+      setPixelCardStatus('error')
+    }
+  }
+  useEffect(() => {
+    if (isEmptyCup || reportOpen || pixelCardUrl || pixelCardStatus) return
+    generatePixelCard()
+  }, [isEmptyCup, pixelCardStatus, pixelCardUrl, reportOpen]) // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className={`special-card settlement-card ${isEmptyCup ? 'empty-cup-card' : ''} ${reportOpen ? 'report-open' : ''}`}>
       <div className="result-frame">
         <div className="result-ribbon">
           <span />
-          <strong>Today's Special</strong>
+          <strong>Life Kitchen 酒馆信笺</strong>
           <span />
         </div>
+        <div className="result-maker">{makerName} 给你做了一杯</div>
         <div className="result-title">{card.drinkName}</div>
-      <div className="result-signature">
-          <span>From {card.bartender}</span>
+        <div className="result-signature letter-signature" aria-label="酒馆信笺署名">
+          <span className="letter-to">To: {guestLine(profile)}</span>
           <i />
-          <span>{guestLine(profile)}</span>
+          <span className="letter-from">From: {card.bartender}</span>
         </div>
       </div>
 
-      <ResultDrink recipe={card.recipe || []} isEmptyCup={isEmptyCup} vessel={card.vessel || 'highball'} bartender={bartender} />
+      {pixelCardUrl ? (
+        <div className="generated-pixel-card">
+          <img src={pixelCardUrl} alt={`${card.drinkName} 像素出杯图`} />
+        </div>
+      ) : (
+        <ResultDrink recipe={card.recipe || []} isEmptyCup={isEmptyCup} vessel={card.vessel || 'highball'} bartender={bartender} />
+      )}
 
-      <div className="dname">{MODE_LABELS[card.mode] || '今日调酒'} · {DESSERT_VESSELS.has(card.vessel) ? '出炉' : '出杯'}</div>
+      <div className="dname">{productType}完成</div>
       <div className="bartender-badge-line">
         <span className="bartender-mini">
           {bartender?.image && <img src={bartender.image} alt="" />}
@@ -357,13 +401,10 @@ export default function SpecialCard({ card, bartender, reportOpen = false, onGen
       {!reportOpen && (
         <div className="settlement-actions">
           {!isEmptyCup && (
-            <button className="poster-share-btn" type="button" disabled={sharing} onClick={generatePoster}>
-              {sharing ? '正在绘制分享卡' : '生成朋友圈图'}
+            <button className="poster-share-btn" type="button" disabled={sharing || pixelCardStatus === 'loading'} onClick={generatePoster}>
+              {sharing || pixelCardStatus === 'loading' ? '正在备酒' : '请朋友喝一杯'}
             </button>
           )}
-          <button className="btn-primary report-generate" type="button" onClick={onGenerateReport}>
-            种种配方揭秘
-          </button>
           {shareMessage && <small className="poster-share-status">{shareMessage}</small>}
         </div>
       )}
@@ -373,18 +414,17 @@ export default function SpecialCard({ card, bartender, reportOpen = false, onGen
           {!isEmptyCup && (
             <div className="poster-share-row">
               <button className="poster-share-btn" type="button" disabled={sharing} onClick={generatePoster}>
-                {sharing ? '正在绘制分享卡' : '生成朋友圈图'}
+                {sharing ? '正在备酒' : '请朋友喝一杯'}
               </button>
               {shareMessage && <small className="poster-share-status">{shareMessage}</small>}
             </div>
           )}
           <ReviewGaugeBoard charts={report.progressCharts} />
           <BartenderAdviceCard advice={report.bartenderAdvice} bartender={bartender} />
-          <ManagementTuning items={report.flavorTuning} />
 
       <div style={{ margin: '6px 0 14px' }}>
         {isEmptyCup ? (
-          <div className="empty-cup-note">今天还没有完成的心事片段，所以暂时没有形成成品配方。</div>
+          <div className="empty-cup-note">今天还没有完成记录。先留一只空杯，明天从一件小事开始。</div>
         ) : (
           <RecipeBar recipe={card.recipe} />
         )}
@@ -392,7 +432,7 @@ export default function SpecialCard({ card, bartender, reportOpen = false, onGen
       {!isEmptyCup && (
         <div className="result-details compact-result-details">
           <div>
-            <strong>入杯片段</strong>
+            <strong>今天完成</strong>
             {done.length ? (
               <ul className="loot-grid">
                 {done.map((item) => (
@@ -404,26 +444,24 @@ export default function SpecialCard({ card, bartender, reportOpen = false, onGen
                 ))}
               </ul>
             ) : (
-              <p>还没有完成的片段进入杯中。</p>
+              <p>还没有完成记录。</p>
             )}
           </div>
           <div>
-            <strong>杯身状态</strong>
+            <strong>状态</strong>
             <div className="taste-tags">
-              <span>主味：{card.heaviest}</span>
+              <span>主线：{card.heaviest}</span>
               <span>缺口：{card.missing}</span>
             </div>
-            <SpecialRecipeBadge recipe={specialRecipe} />
           </div>
         </div>
       )}
 
-      <MethodRelationChart relation={managementRelation} />
-      <HabitMemoryCard memory={report.habitMemory} />
+      <ManagementTuning items={report.flavorTuning} />
 
       {!!evoTips.length && (
         <div className="evo-result">
-          <strong>加料槽</strong>
+          <strong>下次可选</strong>
           <div className="additive-cup-grid">
             {evoTips.slice(0, 3).map((tip, index) => (
               <AdditiveCup key={tip.id} tip={tip} index={index} />
@@ -432,7 +470,7 @@ export default function SpecialCard({ card, bartender, reportOpen = false, onGen
         </div>
       )}
 
-      <div className="next-chip">明日加料 · {card.suggestion}</div>
+      <HabitMemoryCard memory={report.habitMemory} />
         </>
       )}
     </div>

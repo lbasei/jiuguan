@@ -23,7 +23,7 @@ const STRATEGY_LABEL = {
 const OPTIMIZATION_PROPS = [
   {
     icon: 'sweet',
-    name: '甜度 +1',
+    name: '甜度',
     note: '把最硬的一项拆小一点，入口更顺。',
   },
   {
@@ -156,6 +156,7 @@ function buildDayPlan(order, rhythmKey, mode = 'daily') {
 
 export default function OptimizePage() {
   const { state, dispatch } = useStore()
+  const isQuickMode = state.workflowMode !== 'full'
   const selectedBartenderId = state.lockedBartenderId || state.bartenderId
   const bartender = getBartender(selectedBartenderId, state.customBartenders)
   const customPet = state.customBartenders?.find((b) => b.id === selectedBartenderId)
@@ -168,7 +169,7 @@ export default function OptimizePage() {
   const [elapsed, setElapsed] = useState(0)
   const [petOn, setPetOn] = useState(false)
   const [confirmGenerate, setConfirmGenerate] = useState(false)
-  const [stageMode, setStageMode] = useState('recipe')
+  const [stageMode, setStageMode] = useState(isQuickMode ? 'execute' : 'recipe')
   const [rhythmKey, setRhythmKey] = useState('academy')
   const [sliceView, setSliceView] = useState('simple')
   const [vesselPanel, setVesselPanel] = useState('')
@@ -220,8 +221,8 @@ export default function OptimizePage() {
   const allTouched = hasOrder && state.order.every((t) => statusOf(t))
   const completedCount = state.order.filter((t) => statusOf(t) === 'completed').length
   const hasCompleted = completedCount > 0
+  const canEditRecipe = !isQuickMode && stageMode === 'recipe'
   const nextTask = state.order.find((t) => !statusOf(t))
-  const lastCompletedTask = [...state.order].reverse().find((t) => statusOf(t) === 'completed')
   const currentTask = active || nextTask
   const currentTaskIndex = currentTask ? state.order.findIndex((t) => t.id === currentTask.id) : -1
   const isFreeTimeMode = state.assistantMode === 'free_time'
@@ -296,6 +297,12 @@ export default function OptimizePage() {
     })
     prevRects.current = null
   }, [state.order])
+
+  useEffect(() => {
+    if (isQuickMode && state.step === 'optimize') {
+      dispatch({ type: 'GO', step: 'execute' })
+    }
+  }, [dispatch, isQuickMode, state.step])
 
   useEffect(() => onPetStatus(setPetOn), [])
 
@@ -582,15 +589,17 @@ export default function OptimizePage() {
 
   return (
     <div>
-      <h2 className="title">{bartender.name} 今日为你定制的特调</h2>
-      <p className="subtitle compact-subtitle">先调配这杯的层次，确认后直接在下面开始执行。</p>
+      <h2 className="title">{isQuickMode ? '开始' : `${bartender.name} 的特调单`}</h2>
+      <p className="subtitle compact-subtitle">
+        {isQuickMode ? '一次只看一项。' : '排好顺序，就可以开做。'}
+      </p>
 
       <div className="card order-card">
         <div className="execute-toolbar order-toolbar">
           <div>
-            <label className="field">▸ 今日调配清单</label>
+            <label className="field">{isQuickMode ? '▸ 执行清单' : '▸ 调配清单'}</label>
             <span className="toolbar-status">
-              {completedCount}/{state.order.length} 已完成 · {STRATEGY_LABEL[state.strategy] || state.strategy}
+              {completedCount}/{state.order.length} 已完成{!isQuickMode && ` · ${STRATEGY_LABEL[state.strategy] || state.strategy}`}
             </span>
           </div>
           <button className="btn-primary compact-action" disabled={!hasOrder || allTouched} onClick={completeAll}>
@@ -598,11 +607,11 @@ export default function OptimizePage() {
           </button>
         </div>
 
-        <div className={`order-dashboard ${stageMode === 'execute' ? 'is-execute-stage' : 'is-recipe-stage'} ${active ? 'is-focus-brew' : ''}`}>
-          <div className="order-blueprint" aria-label="今日酒单比例平面图">
+        <div className={`order-dashboard ${isQuickMode ? 'quick-dashboard' : ''} ${stageMode === 'execute' ? 'is-execute-stage' : 'is-recipe-stage'} ${active ? 'is-focus-brew' : ''}`}>
+          <div className="order-blueprint" aria-label="酒单比例图">
             <div className="panel-title">
-              <strong>今日出品剖面</strong>
-              <span>看今天的任务比例</span>
+              <strong>杯中比例</strong>
+              <span>时间会变成层次</span>
             </div>
             <div className={`blueprint-glass vessel-${state.drinkVessel || 'highball'} ${active ? 'is-brewing' : ''}`} aria-hidden="true">
               <div className="blueprint-liquid">
@@ -623,7 +632,7 @@ export default function OptimizePage() {
               </div>
             </div>
             <div className="blueprint-table" aria-hidden="true" />
-            <div className={`drink-orbit ${isFreeTimeMode ? `slice-${sliceView}` : ''}`} aria-label="饮品周围的小料配比">
+            {canEditRecipe && <div className={`drink-orbit ${isFreeTimeMode ? `slice-${sliceView}` : ''}`} aria-label="饮品周围的小料配比">
               {isFreeTimeMode && (
                 <div className="slice-view-switch" role="group" aria-label="空闲切片呈现方式">
                   <span>空闲切片</span>
@@ -682,8 +691,11 @@ export default function OptimizePage() {
                           key={exp.id}
                           type="button"
                           className={`addon-cup ${absorbed ? 'absorbed' : ''} ${applicable && !absorbed ? 'suggested' : ''}`}
-                          disabled={absorbed}
-                          onClick={() => dispatch({ type: 'ABSORB', exp })}
+                          onClick={(event) => {
+                            dispatch(absorbed ? { type: 'UNABSORB', id: exp.id } : { type: 'ABSORB', exp })
+                            event.currentTarget.blur()
+                          }}
+                          aria-pressed={absorbed}
                         >
                           <span className={`evo-prop ${prop.icon}`} aria-hidden="true">
                             <span />
@@ -691,7 +703,7 @@ export default function OptimizePage() {
                           </span>
                           <span>
                             <strong>{prop.name}</strong>
-                            <em>{absorbed ? '已加入' : applicable ? '适合今天' : '可选小料'}</em>
+                            <em>{absorbed ? '已加入 · 点此撤回' : applicable ? '适合今天 · 可加入' : '可加入'}</em>
                           </span>
                         </button>
                       )
@@ -707,12 +719,12 @@ export default function OptimizePage() {
                     : isFreeTimeMode
                       ? sliceView === 'simple'
                         ? '简约版只保留顺序和时间，减少选择压力。'
-                        : '完整版会显示放松、娱乐和优化小料，适合慢慢玩。'
-                      : '想调得更顺手，就从旁边加一杯小料。'}
+                        : '完整版保留小料和余量。'
+                      : '需要的话，加一点小料。'}
                 </span>
               </div>
-            </div>
-            <div className="vessel-picker" role="group" aria-label="选择今日器皿">
+            </div>}
+            {canEditRecipe && <div className="vessel-picker" role="group" aria-label="选择今日器皿">
               {VESSELS.map((vessel) => (
                 <button
                   key={vessel.id}
@@ -746,8 +758,8 @@ export default function OptimizePage() {
                 </span>
                 <span>{state.customVesselLabel || '自定义杯'}</span>
               </button>
-            </div>
-            {vesselPanel && (
+            </div>}
+            {canEditRecipe && vesselPanel && (
               <div className={`vessel-panel vessel-panel-${vesselPanel}`} aria-live="polite">
                 {vesselPanel === 'more' ? (
                   LOCKED_VESSELS.map((vessel) => (
@@ -807,12 +819,12 @@ export default function OptimizePage() {
               </div>
             ) : (
               <div className="blueprint-note">
-                {stageMode === 'recipe' ? '右侧小票调整层次；确认后这里会翻到执行清单。' : '点「开始」后，今日出品会放大制作，下面出现专注计时。'}
+                {isQuickMode ? '点「开始这一项」。' : stageMode === 'recipe' ? '右侧调整顺序。' : '开始后会进入专注计时。'}
               </div>
             )}
           </div>
 
-          {stageMode === 'recipe' && <div className="recipe-sort-panel" aria-label="配方层次排序">
+          {canEditRecipe && <div className="recipe-sort-panel" aria-label="配方层次排序">
             <div className="panel-title mini-title">
               <strong>配方层次</strong>
               <span>影响下方执行顺序</span>
@@ -855,21 +867,20 @@ export default function OptimizePage() {
                 </div>
               ))}
             </div>
-            <button className="btn-primary recipe-submit" type="button" disabled={!hasOrder} onClick={() => setStageMode('execute')}>
+            <button className="btn-primary recipe-submit" type="button" disabled={!hasOrder} onClick={() => dispatch({ type: 'GO', step: 'execute' })}>
               把配方交给吧台
             </button>
           </div>}
 
           {stageMode === 'execute' && <div className="execute-stage-panel">
           <div className="stage-switcher">
-            <span>吧台已接单</span>
-            <button className="btn-ghost" type="button" onClick={() => setStageMode('recipe')}>改一下配方</button>
+              <span>吧台接单</span>
           </div>
 
           <div className="order-list-panel">
             <div className="panel-title list-title">
-              <strong>当前这一杯</strong>
-              <span>一次只做一项，完成后自动端出下一项</span>
+              <strong>现在做这项</strong>
+              <span>完成后进入下一项</span>
             </div>
             <div className="single-task-progress" aria-label="任务进度">
               {state.order.map((t, i) => {
@@ -913,28 +924,18 @@ export default function OptimizePage() {
                 ) : (
                   <div className="single-task-actions">
                     <button className="btn-primary" type="button" onClick={() => start(currentTask)}>开始这一项</button>
-                    {lastCompletedTask && (
-                      <button className="btn-ghost task-undo-btn" type="button" onClick={() => undoTask(lastCompletedTask.id)}>
-                        撤销上一项
-                      </button>
-                    )}
                   </div>
                 )}
               </div>
             ) : (
               <div className="single-task-card done-all">
-                <div className="single-task-title">今日这一杯已经调完</div>
-                <div className="single-task-sub">可以生成今日出品，也可以回去改一下配方。</div>
-                {lastCompletedTask && (
-                  <button className="btn-ghost task-undo-btn" type="button" onClick={() => undoTask(lastCompletedTask.id)}>
-                    撤销上一项
-                  </button>
-                )}
+                <div className="single-task-title">已经调完</div>
+                <div className="single-task-sub">可以出杯，未完成的会继续留在记录里。</div>
               </div>
             )}
           </div>
 
-          {!isFreeTimeMode && <div className="day-plan" aria-label="今日时间酒谱">
+          {canEditRecipe && !isFreeTimeMode && <div className="day-plan" aria-label="今日时间酒谱">
             <div className="day-plan-head">
               <div>
                 <strong>时间酒谱</strong>
@@ -992,7 +993,7 @@ export default function OptimizePage() {
         <button className="btn-ghost" onClick={() => dispatch({ type: 'GO', step: 'todos' })}>← 重新倾诉</button>
         <div className="spacer" />
         <button className="btn-primary" onClick={requestFinalize}>
-          {hasCompleted ? (allTouched ? '生成今日出品 ✦' : '直接调配成今日出品') : '生成空杯报告'}
+          {hasCompleted ? (allTouched ? '出杯 ✦' : '直接出杯') : '生成空杯'}
         </button>
       </div>
 
@@ -1002,13 +1003,13 @@ export default function OptimizePage() {
             <div className="confirm-title">{hasCompleted ? '还有事项没有完成' : '还没有完成的事项'}</div>
             <p>
               {hasCompleted
-                ? '种种可以直接把目前的进度调配成今日出品。未完成的事项会在最后报告里标为未完成，不会被算作已完成。'
-                : '现在还没有完成的心事片段，所以不会生成成品，只会得到一只空杯和一份未完成报告。'}
+                ? '未完成的会留在记录里，不会算作完成。'
+                : '还没有完成项，只会得到一只空杯。'}
             </p>
             <div className="btn-row">
               <button className="btn-ghost" onClick={() => setConfirmGenerate(false)}>再看看清单</button>
               <div className="spacer" />
-              <button className="btn-primary" onClick={finalizeNow}>{hasCompleted ? '确认直接调配' : '确认生成空杯'}</button>
+              <button className="btn-primary" onClick={finalizeNow}>{hasCompleted ? '确认出杯' : '确认空杯'}</button>
             </div>
           </div>
         </div>

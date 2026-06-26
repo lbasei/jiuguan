@@ -6,13 +6,13 @@ import { formatDuration } from './time.js'
 import { getRecipeVolumeLayers } from './recipeVolume.js'
 
 const ROLE_TEXT = {
-  deep_work: '杯底主味，代表今天最需要专注推进的部分。',
-  creative: '香气层，代表需要构思、表达和主动创造的部分。',
-  communication: '气泡层，代表消息、会议和外部协作的流动。',
-  admin: '小料层，代表零散事务和需要顺手归整的部分。',
-  recovery: '缓冲层，代表休息、运动和把状态接回来的部分。',
-  urgent: '辛香层，代表截止、突发和必须立刻处理的部分。',
-  review: '收口层，代表复盘、整理和为下一轮留线索的部分。',
+  deep_work: '主要花在主线推进。',
+  creative: '留了创作和构思。',
+  communication: '沟通协作占了一部分。',
+  admin: '零碎事务比较多。',
+  recovery: '有留恢复时间。',
+  urgent: '有需要立刻处理的事。',
+  review: '最后有收口和整理。',
 }
 
 const BARTENDER_SPECIALS = {
@@ -187,7 +187,7 @@ function getManagementRelation({ recipe, bartender, heaviest, missing, overrun, 
     points.push('可存酒柜')
   }
   return {
-    title: '饮品和方法的关系',
+    title: '今天的节奏',
     points: points.slice(0, 3),
   }
 }
@@ -196,30 +196,30 @@ function makeStateProfile({ isEmptyCup, completionRate, timeAccuracy, overrun, m
   if (isEmptyCup) {
     return {
       title: '空杯状态',
-      summary: '今天还没有真正完成的片段进入杯中。先不急着评价好坏，重点是找到一个最容易开始的入口。',
+      summary: '今天还没有完成记录。明天只放一件小事，先让杯底有第一层。',
     }
   }
   if (completionRate >= 0.8 && timeAccuracy >= 0.75 && !missing.length) {
     return {
       title: '稳定出杯',
-      summary: '完成度和时间感都比较稳，今天的安排有清楚的主线，也留住了收尾。',
+      summary: '完成度和时间感都稳。这个顺序可以存起来，下次直接沿用。',
     }
   }
   if (overrun.length >= 2 || timeAccuracy < 0.55) {
     return {
-      title: '火候偏急',
-      summary: '有几件事比预计更耗时，说明今天的杯子不是问题太多，而是时间估计偏乐观。',
+      title: '时间偏紧',
+      summary: '有几件事比预想更久。下次同类任务先加一点余量。',
     }
   }
   if (missing.length) {
     return {
       title: '缺少缓冲',
-      summary: `主味是${heaviest?.name || '今日主料'}，但恢复或复盘不足，容易做完事情之后感觉没有真正落地。`,
+      summary: `主线是${heaviest?.name || '今天的任务'}，但缓冲不够。明天别把休息放到最后才想起。`,
     }
   }
   return {
     title: '结构成形',
-    summary: '今天的任务已经被调成比较清楚的层次，下一步适合把可复用的方法记下来。',
+    summary: '今天的顺序已经成形。下一次可以少调几步，直接从这杯开始。',
   }
 }
 
@@ -311,9 +311,9 @@ function makeProgressCharts({ completionRate, timeAccuracy, completedCount, tota
     },
     {
       key: 'evo',
-      label: 'EvoMap',
+      label: '记忆',
       value: Math.min(96, evoBase + Math.round(completionRate * 18) + (timingValue > 80 ? 8 : 0)),
-      detail: evoTips.length ? `吸收 ${evoTips.length} 条` : '等待样本',
+      detail: evoTips.length ? `${evoTips.length} 条习惯` : '待记录',
       tone: 'pink',
     },
   ]
@@ -336,7 +336,7 @@ function makeHabitMemory({ recipe, heaviest, missing, overrun, underrun, complet
   return {
     title: '下次默认记住',
     chips: chips.slice(0, 4),
-    note: `EvoMap 已收下 ${completedCount} 个完成样本，下一次会先按这杯的顺序给你垫底。`,
+    note: `已记住 ${completedCount} 个完成样本。下次会先按这杯的顺序起步。`,
     palette: recipe.slice(0, 4).map((r) => r.color),
   }
 }
@@ -374,10 +374,10 @@ function makeReport({ todos, recipe, records, completionRate, timeAccuracy, isEm
   })
 
   const blueprintNotes = isEmptyCup
-    ? ['杯子仍是空的，所以今天不生成比例分析。先完成一件很小的事，再回来生成第一层味道。']
+    ? ['今天还没有完成记录。先完成一件很小的事。']
     : topVolumeLayers.map((layer, index) => {
-        const role = ROLE_TEXT[layer.category] || '这一层代表今天被你投入时间的部分。'
-        return `${index + 1}. ${layer.name}倒入 ${layer.volumeLabel}。${role}`
+        const role = ROLE_TEXT[layer.category] || '今天有一部分时间放在这里。'
+        return `${layer.name} ${layer.volumeLabel}，${role}`
       })
 
   if (!isEmptyCup && missing.length) {
@@ -463,8 +463,8 @@ function makeReport({ todos, recipe, records, completionRate, timeAccuracy, isEm
       }
     }),
     memory: isEmptyCup
-      ? '今天的酒签：杯子还空着，但吧台已经开灯。明天先完成一件最小的事。'
-      : `今天的酒签：${stateProfile.title}。主要味道来自${heaviest?.name || '今日主料'}，完成了 ${completedRecords.length} 件事，适合把这个节奏留作参考。`,
+      ? '空杯也会留下记录：明天先完成一件最小的事。'
+      : `${stateProfile.title}：完成 ${completedRecords.length} 件事，主线是${heaviest?.name || '今天的任务'}。`,
   }
 }
 

@@ -129,3 +129,69 @@ export async function generateBartenderDrinkMoment({ bartender, drinkName, recip
   if (image?.url) return image.url
   throw new Error('生图接口没有返回图片')
 }
+
+export async function generateDrinkPixelCard({ card, bartender }) {
+  const vesselMap = {
+    highball: 'tall iced drink cup',
+    coupe: 'cocktail coupe glass',
+    wine: 'wine glass',
+    rocks: 'short square rocks glass',
+    orb: 'round magical orb goblet',
+    cake: 'cream cake dessert plate',
+    tart: 'fruit tart dessert',
+    snack: 'small afternoon tea snack plate',
+    custom: card?.customVesselLabel || 'custom magical vessel',
+  }
+  const recipeHint = (card?.recipe || [])
+    .slice(0, 5)
+    .map((layer) => `${layer.name || layer.category} ${Math.round((layer.ratio || 0) * 100)}% ${layer.color || ''}`)
+    .join(', ')
+  const plantHint = `${bartender?.plant || ''} ${bartender?.name || ''}`
+  const garnish =
+    /mint|薄荷/i.test(plantHint) ? 'mint leaves'
+      : /ginger|姜/i.test(plantHint) ? 'ginger slice and warm golden beads'
+        : /garlic|葱|蒜/i.test(plantHint) ? 'spring onion and garlic sprout charm'
+          : /cilantro|香菜/i.test(plantHint) ? 'cilantro leaves'
+            : /osmanthus|桂花/i.test(plantHint) ? 'tiny osmanthus flowers'
+              : /chili|辣椒/i.test(plantHint) ? 'small chili flame'
+                : /lemon|柠檬/i.test(plantHint) ? 'lemon slice'
+                  : /rosemary|迷迭香/i.test(plantHint) ? 'rosemary sprig'
+                    : 'small magical star garnish'
+
+  const prompt = [
+    'Create a finished Life Kitchen collectible pixel-art result card.',
+    'Style references: cute 1:1 pixel drink cards with cream paper background, brown or pastel border, pixel title area, decorative sparkles, clean centered beverage or dessert, no realism, no vector-flat look.',
+    'Primary image should be a complete card scene, not an isolated drink. Use low-saturation summer magical tavern atmosphere.',
+    'Keep all garnish, straw, ice, fruit, pearls, flowers, and decorative items fully inside the inner card frame. Nothing may cross outside the card border.',
+    'No English text except Life Kitchen if text is needed; no watermark; avoid malformed Chinese characters. Prefer no small body text.',
+    `Drink/dessert name: ${card?.drinkName || '今日特调'}.`,
+    `Vessel or food type: ${vesselMap[card?.vessel] || vesselMap.highball}.`,
+    `Recipe layers and colors: ${recipeHint || 'empty clear cup with subtle sparkle'}.`,
+    `Selected plant spirit garnish: ${garnish}.`,
+    `Bartender personality: ${bartender?.style || bartender?.reminderTone || 'magical plant bartender'}.`,
+    'Make this card feel customized and collectible, like a game settlement item or shareable MBTI-style result card.',
+  ].join(' ')
+
+  const res = await fetch(IMAGE_ENDPOINT, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: IMAGE_MODEL,
+      prompt,
+      size: '1024x1024',
+      quality: 'low',
+      n: 1,
+    }),
+  })
+
+  if (!res.ok) {
+    const message = await res.text().catch(() => '')
+    throw new Error(message || `像素出杯图生成失败：${res.status}`)
+  }
+
+  const data = await res.json()
+  const image = data.data?.[0]
+  if (image?.b64_json) return `data:image/png;base64,${image.b64_json}`
+  if (image?.url) return image.url
+  throw new Error('生图接口没有返回图片')
+}

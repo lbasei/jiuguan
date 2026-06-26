@@ -13,7 +13,7 @@
       #stage.dragging { cursor: grabbing; }
       #stage.choosing-mode { cursor: default; }
       #stage.island-mode {
-        flex-direction: row; justify-content: center; gap: 6px; padding: 4px 6px;
+        flex-direction: row; justify-content: center; gap: 7px; padding: 4px 8px;
         background: transparent;
         border: 0; box-shadow: none;
         cursor: pointer;
@@ -57,6 +57,18 @@
       #stage.island-mode #magicFx {
         display: none;
       }
+      #islandTask {
+        display: none; max-width: 82px; color: #23445C;
+        font-family: 'DotGothic16', monospace; font-size: 11px; font-weight: 700; line-height: 1.08;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        text-shadow:
+          -1px 0 0 #F8FFFD,
+          1px 0 0 #F8FFFD,
+          0 -1px 0 #F8FFFD,
+          0 1px 0 #F8FFFD;
+        app-region: no-drag; -webkit-app-region: no-drag;
+      }
+      #stage.island-mode #islandTask.show { display: block; }
       #bubble {
         font-family: 'DotGothic16', monospace; font-size: 12px; color: #23445C;
         position: relative; overflow: hidden;
@@ -84,7 +96,7 @@
         background: rgba(255,253,244,.98);
         background-size: 16px 100%, auto;
         border: 2px solid #E8D48A; box-shadow: 2px 2px 0 rgba(35,68,92,.42);
-        padding: 7px 8px; margin-bottom: 5px; width: 208px; max-height: 126px; overflow-y: auto;
+        padding: 7px 8px; margin-bottom: 5px; width: 208px; max-height: 132px; overflow-y: auto;
         text-align: left; opacity: 0; visibility: hidden; transition: opacity .2s;
         clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%, 0 8px);
       }
@@ -111,7 +123,7 @@
       }
       #stage.island-mode #timerChip {
         display: inline-flex; margin: 0; box-shadow: none; border-width: 0; padding: 0;
-        min-width: 78px; max-width: 96px; overflow: visible;
+        min-width: 68px; max-width: 82px; overflow: visible;
         font-size: 10px;
       }
       #stage.island-mode #timerChip::before {
@@ -122,14 +134,14 @@
         content: '+TIME'; color: #D86F63;
       }
       #islandComplete {
-        display: none; width: 25px; height: 25px; border: 0; padding: 0; margin: 0;
+        display: none; width: 34px; height: 34px; border: 0; padding: 0; margin: 0;
         background: transparent; box-shadow: none; cursor: pointer;
         app-region: no-drag; -webkit-app-region: no-drag;
       }
       #stage.island-mode #islandComplete.show { display: inline-grid; place-items: center; }
       #islandComplete::before {
-        content: ''; display: block; width: 16px; height: 10px;
-        border-left: 4px solid #D9A52B; border-bottom: 4px solid #D9A52B;
+        content: ''; display: block; width: 20px; height: 12px;
+        border-left: 5px solid #D49A00; border-bottom: 5px solid #D49A00;
         transform: rotate(-45deg) translate(1px, -2px);
         filter:
           drop-shadow(-1px 0 0 #FFF7C8)
@@ -158,7 +170,7 @@
         display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 5px;
       }
       #counter .ingredient.current {
-        grid-template-columns: 1fr auto; row-gap: 2px; padding: 7px 0 8px;
+        grid-template-columns: minmax(0, 1fr) auto auto; row-gap: 2px; padding: 7px 0 8px;
       }
       #counter .ingredient.current .task-step {
         grid-column: 1 / -1; font-size: 10px; color: #8A6D3B;
@@ -168,6 +180,9 @@
       }
       #counter .ingredient.current .ing-meta {
         grid-column: 1 / 2;
+      }
+      #counter .ingredient.current .task-check {
+        grid-column: 2; grid-row: 2 / 4; align-self: center;
       }
       #counter .ingredient:last-child { border-bottom: none; }
       #counter .task-check {
@@ -184,7 +199,7 @@
         border-left: 4px solid #D49A00; border-bottom: 4px solid #D49A00; transform: rotate(-45deg);
       }
       #counter .task-start {
-        grid-row: 2 / 4; grid-column: 2; align-self: center;
+        grid-row: 2 / 4; grid-column: 3; align-self: center;
         border: 0; background: transparent; color: #8A6D3B;
         font-family: 'Cinzel Decorative', 'ZCOOL XiaoWei', serif; font-size: 15px; font-weight: 700;
         text-shadow: 0 1px 0 rgba(255,255,255,.8);
@@ -196,7 +211,7 @@
       #counter .ingredient.done .ing-title { text-decoration: line-through; opacity: .68; }
       #counter .ing-meta { font-size: 11px; color: #638397; }
       #counter .ticket-actions {
-        display: flex; justify-content: center; gap: 8px; padding-top: 7px;
+        display: flex; justify-content: center; gap: 8px; padding-top: 7px; flex-wrap: wrap;
       }
       #counter .ticket-actions button,
       #petConfirm {
@@ -323,13 +338,13 @@
       #plate.dragging { cursor: grabbing; }
       #stage.choosing-mode #sprite { cursor: pointer; }
       #stage.island-mode #sprite {
-        width: 40px; height: 40px; flex: 0 0 40px;
+        width: 42px; height: 42px; flex: 0 0 42px;
       }
       #stage.island-mode #sprite img {
-        width: 40px; height: 40px;
+        width: 42px; height: 42px;
       }
       #stage.island-mode #sprite svg {
-        width: 40px; height: 40px;
+        width: 42px; height: 42px;
       }
       #sprite img {
         width: 158px; height: 158px; object-fit: contain; image-rendering: pixelated; display: block;
@@ -343,8 +358,8 @@
         height: 178px;
       }
       #stage.island-mode[data-pet="cilantro"] #sprite img {
-        width: 45px;
-        height: 45px;
+        width: 47px;
+        height: 47px;
       }
       #cup {
         width: 34px; height: 46px; margin-bottom: 3px;
@@ -412,6 +427,7 @@
       </div>
       <div id="bubble"></div>
       <button id="petConfirm" aria-label="确认召唤当前种种">确认召唤</button>
+      <div id="islandTask" aria-live="polite"></div>
       <div id="timerChip"><span class="timer-mark" aria-hidden="true"></span><strong id="timerText">00:00</strong></div>
       <button id="islandComplete" aria-label="完成当前任务"></button>
       <div id="counter"></div>

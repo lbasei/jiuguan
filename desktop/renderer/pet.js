@@ -16,6 +16,7 @@ const petConfirmEl = document.getElementById('petConfirm')
 const timerChipEl = document.getElementById('timerChip')
 const timerTextEl = document.getElementById('timerText')
 const islandCompleteEl = document.getElementById('islandComplete')
+const islandTaskEl = document.getElementById('islandTask')
 const animationApi = window.petAnimations?.createPetAnimations?.()
 
 let greeted = false
@@ -91,6 +92,8 @@ function render(data) {
     const act = window.ACTION[data.category] || '调制中'
     showBubble(`${escapeHtml(data.title)}<span class="act">${act}…</span>`, 0)
     activeIslandTodoId = data.activeTodoId || pending[0]?.id || ''
+    const islandTask = data.title || pending.find((t) => t.id === activeIslandTodoId)?.title || pending[0]?.title || ''
+    setIslandTask(islandTask)
     islandCompleteEl?.classList.toggle('show', !!activeIslandTodoId)
     startCountdown(data)
     setLocalMode('island')
@@ -103,6 +106,7 @@ function render(data) {
     showBubble('今日特调完成 ✦', 0)
     stopCountdown()
     activeIslandTodoId = ''
+    setIslandTask('')
     islandCompleteEl?.classList.remove('show')
     setLocalMode('normal')
     window.pet?.setMode?.('normal')
@@ -114,6 +118,7 @@ function render(data) {
     if (greeted && !counterEl.classList.contains('show')) hideBubble()
     if (!focusModeActive) stopCountdown()
     activeIslandTodoId = ''
+    if (!focusModeActive) setIslandTask('')
     islandCompleteEl?.classList.remove('show')
     if (!focusModeActive && petMode === 'island') {
       setLocalMode('normal')
@@ -207,6 +212,13 @@ function renderCountdown() {
   timerChipEl.classList.add('show')
 }
 
+function setIslandTask(title = '') {
+  if (!islandTaskEl) return
+  islandTaskEl.textContent = title || ''
+  islandTaskEl.title = title || ''
+  islandTaskEl.classList.toggle('show', Boolean(title))
+}
+
 function startCountdown(data) {
   focusModeActive = false
   const duration = Number(data.durationSec || 0)
@@ -265,6 +277,7 @@ function renderCounter(pending, done, showIt, options = {}) {
         <span class="task-step">当前这一项</span>
         <span class="ing-title">${escapeHtml(current.title)}</span>
         <span class="ing-meta">${current.estimatedTime} 分钟</span>
+        <button class="task-check task-finish" data-action="complete" aria-label="完成 ${escapeAttr(current.title)}"></button>
         <button class="task-start" data-action="start" aria-label="开始 ${escapeAttr(current.title)}">开始</button>
       </div>`
       : `
@@ -307,6 +320,15 @@ function renderCounter(pending, done, showIt, options = {}) {
       button.disabled = true
       window.pet?.sendAction?.({ type: 'start', todoId: id, startedAt: Date.now() })
       showBubble('开始调配 ✦', 900)
+    })
+  })
+  counterEl.querySelectorAll('[data-action="complete"]').forEach((button) => {
+    button.addEventListener('click', (e) => {
+      e.stopPropagation()
+      const id = button.closest('.ingredient')?.dataset.id
+      if (!id) return
+      window.pet?.sendAction?.({ type: 'complete', todoId: id, completedAt: Date.now() })
+      showBubble('这一项完成 ✦', 900)
     })
   })
   counterEl.querySelector('[data-action="finalize"]')?.addEventListener('click', (e) => {
@@ -441,6 +463,7 @@ function cheerPet() {
 }
 function enterFocusClock() {
   if (!countdownStartedAt) startFocusCountdown()
+  setIslandTask('专注钟')
   setLocalMode('island')
   window.pet?.setMode?.('island')
   showBubble('计时开始 ✦', 1200)
@@ -555,6 +578,7 @@ islandCompleteEl?.addEventListener('click', (e) => {
   if (!activeIslandTodoId) return
   const id = activeIslandTodoId
   activeIslandTodoId = ''
+  setIslandTask('')
   islandCompleteEl.classList.remove('show')
   cupEl.classList.remove('pour-flash')
   void cupEl.offsetWidth

@@ -23,6 +23,17 @@ const accentFor = (bartender) => {
   return '#58BDB8'
 }
 
+const BADGE_LABELS = {
+  rosemary: '控场',
+  ginger: '开局',
+  mint: '缓冲',
+  lemon: '清醒',
+  garlic: '护场',
+  cilantro: '随性',
+  chili: '冲刺',
+  osmanthus: '优雅',
+}
+
 const formatClock = (date) =>
   date.toLocaleTimeString('zh-CN', {
     hour: '2-digit',
@@ -161,7 +172,7 @@ export default function BartenderPage() {
 
   const summonDesktopPet = async () => {
     if (!canSummon) {
-      setPetSummonNote('先切到一只具体种种，再唤醒种种。')
+      setPetSummonNote('先选定一只种种，再把它召唤到桌面。')
       return
     }
     const ok = await ensurePetState({
@@ -171,7 +182,7 @@ export default function BartenderPage() {
       schedule: [],
       customBartender: cur.custom ? cur : undefined,
     })
-    setPetSummonNote(ok ? '种种已到桌面。' : '种种没有醒来，确认本地 API 和 Electron 依赖已启动。')
+    setPetSummonNote(ok ? '种种已经在桌面等你。' : '桌面种种暂时没有出现，先打开桌宠预览窗口。')
   }
 
   const summon = () => {
@@ -195,7 +206,7 @@ export default function BartenderPage() {
     ensurePetState({ state: 'idle', bartenderId: cur.id, selected: true, schedule: [], customBartender: cur.custom ? cur : undefined })
     summonTimer.current = setTimeout(() => {
       dispatch({ type: 'GO', step: 'todos' })
-    }, 1550)
+    }, 850)
   }
 
   const touchHero = (event) => {
@@ -256,7 +267,7 @@ export default function BartenderPage() {
       ensurePetState({ state: 'idle', bartenderId: id, selected: true, schedule: [], customBartender: bartender })
       summonTimer.current = setTimeout(() => {
         dispatch({ type: 'GO', step: 'todos' })
-      }, 1550)
+      }, 850)
     } catch (error) {
       setGenerateError(error.message || '生成失败，检查一下 OpenAI 图片接口。')
     } finally {
@@ -278,14 +289,9 @@ export default function BartenderPage() {
         <span>{currentTime}</span>
         <em>{currentDate}</em>
       </div>
-      <p className="subtitle summon-subtitle">{summoning ? `${cur.name} 正在开心地赶来吧台。` : '左右切换，或按 A / D；双击种种选中，再点一次确认。'}</p>
-      <div className="summon-guide" aria-label="选择方法">
-        <span>A</span>
-        <em>切换种种</em>
-        <span>D</span>
-      </div>
+      <p className="subtitle summon-subtitle">{summoning ? `${cur.name} 正在赶来吧台。` : '你想邀请哪只种种一起喝一杯？'}</p>
       <button className="pet-summon-link" type="button" onClick={summonDesktopPet}>
-        唤醒种种
+        把种种召唤到桌面
       </button>
       {petSummonNote && <div className="pet-summon-note">{petSummonNote}</div>}
 
@@ -316,9 +322,10 @@ export default function BartenderPage() {
             <span className="happy-spark s2" aria-hidden="true" />
             <span className="happy-spark s3" aria-hidden="true" />
             <span className="confirm-orbit" aria-hidden="true" />
-            <span className="summon-warrant" aria-hidden="true">
-              <span className="warrant-check" />
-            </span>
+            {!cur.helper && <span className={`role-badge badge-${cur.id}`} aria-hidden="true">
+              <b>{BADGE_LABELS[cur.id] || '专属'}</b>
+              <i />
+            </span>}
           </div>
           <div className="hero-name">{cur.name}</div>
           <div className="hero-info">
@@ -404,17 +411,13 @@ export default function BartenderPage() {
             <span className="journey-spark j1" />
             <span className="journey-spark j2" />
             <span className="journey-spark j3" />
-            {summonMotion.videoUrl ? (
-              <video className="journey-video" src={summonMotion.videoUrl} autoPlay loop muted playsInline />
-            ) : (
-              <div className="journey-pet">
-                {(summonBartender || cur).image ? (
-                  <img src={(summonBartender || cur).image} alt="" />
-                ) : (
-                  <PixelSprite sprite={CREATURE} scale={5} colors={{ b: BODY[(summonBartender || cur).id] || '#7FBFA6' }} />
-                )}
-              </div>
-            )}
+            <div className="journey-pet">
+              {(summonBartender || cur).image ? (
+                <img src={(summonBartender || cur).image} alt="" />
+              ) : (
+                <PixelSprite sprite={CREATURE} scale={5} colors={{ b: BODY[(summonBartender || cur).id] || '#7FBFA6' }} />
+              )}
+            </div>
             <div className="journey-bar">
               <span className="bar-counter" />
               <span className="bar-cup" />

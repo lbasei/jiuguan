@@ -15,7 +15,7 @@ let dragFollowTimer = null
 let dragFollowState = null
 const NORMAL_WIDTH = 236
 const NORMAL_HEIGHT = 304
-const ISLAND_WIDTH = 150
+const ISLAND_WIDTH = 236
 const ISLAND_HEIGHT = 60
 
 // 单实例锁，防重复窗口

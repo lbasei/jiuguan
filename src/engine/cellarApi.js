@@ -68,3 +68,8 @@ export async function fetchReviewReport(userId, period = 'day') {
   const data = await request(`/api/reports?${params}`)
   return data.report
 }
+
+export async function fetchCellarStats() {
+  const data = await request('/api/stats')
+  return data.stats
+}

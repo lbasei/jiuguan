@@ -1,12 +1,22 @@
-export default function IntroPage({ onStart }) {
+import tavernPanorama from '../../assets/hero/life-kitchen-tavern-panorama.png'
+import { useState } from 'react'
+
+export default function IntroPage({ onQuickStart, onFullStart }) {
+  const [entering, setEntering] = useState(false)
+
+  const enterTavern = () => {
+    if (entering) return
+    setEntering(true)
+    window.setTimeout(onFullStart, 360)
+  }
+
   return (
-    <main className="intro-page">
+    <main className={`intro-page ${entering ? 'is-entering' : ''}`}>
       <div className="intro-sigil" aria-hidden="true">
         <span />
         <span />
         <span />
       </div>
-      <div className="intro-kicker">魔法厨房 · 今日酒馆</div>
       <div className="intro-logo" aria-label="Life Kitchen">
         <span className="logo-hat" aria-hidden="true" />
         <span className="logo-wing left" aria-hidden="true" />
@@ -19,13 +29,22 @@ export default function IntroPage({ onStart }) {
           <span>Kitchen</span>
         </h1>
       </div>
-      <p className="intro-copy">
-        选一只种种，把今天想做的事讲给它听。它会帮你整理顺序、守住节奏，最后生成一杯属于今天的饮品。
-      </p>
 
-      <button className="start-spell" onClick={onStart}>
-        <span>Start</span>
-      </button>
+      <figure className="intro-tavern-portrait" aria-label="Life Kitchen 魔法酒馆全景">
+        <img className="tavern-bg" src={tavernPanorama} alt="像素风魔法酒馆里的种种们" draggable="false" />
+      </figure>
+
+      <div className="intro-actions">
+        <button className="start-spell primary" onClick={enterTavern} aria-label="进入酒馆">
+          <span>进入酒馆</span>
+        </button>
+      </div>
+
+      <div className="intro-door-wipe" aria-hidden="true">
+        <span className="intro-door left" />
+        <span className="intro-door right" />
+        <span className="intro-door-light" />
+      </div>
     </main>
   )
 }

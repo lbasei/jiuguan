@@ -73,21 +73,54 @@ export function orderTodos(todos, strategy) {
 }
 
 // —— 今日特调命名 ——
-const NAME_PREFIX = {
-  deep_work: '深焙', creative: '果香', communication: '气泡',
-  admin: '小料', recovery: '奶霜', urgent: '辛姜', review: '肉桂',
+const NAME_MOODS = {
+  deep_work: ['钟塔', '深蓝', '静室', '夜航'],
+  creative: ['花窗', '星糖', '纸月', '果园'],
+  communication: ['气泡', '铃声', '回音', '信笺'],
+  admin: ['小票', '抽屉', '碎冰', '托盘'],
+  recovery: ['薄雾', '软云', '月露', '奶霜'],
+  urgent: ['火漆', '红椒', '急雨', '姜焰'],
+  review: ['余温', '书页', '桂影', '收口'],
 }
-const NAME_SUFFIX = {
-  deep_work: '冷萃', creative: '特调', communication: '苏打',
-  admin: '拿铁', recovery: '轻乳茶', urgent: '浓缩', review: '收口茶',
+const NAME_CORES = {
+  deep_work: ['冷萃', '黑茶', '浓缩', '长饮'],
+  creative: ['花酿', '果调', '甜梦', '慕斯'],
+  communication: ['苏打', '汽水', '雪泡', '冰茶'],
+  admin: ['拿铁', '奶盖', '小食', '布丁'],
+  recovery: ['轻乳茶', '月光乳', '舒芙蕾', '软饮'],
+  urgent: ['热姜饮', '醒神杯', '辛香茶', '火花特调'],
+  review: ['收口茶', '桂花盏', '尾调', '清茶'],
+}
+const NAME_FINISH = ['特调', '一号', '夜杯', '小宴', '私房款', '吧台版', '限定杯', '收藏款']
+
+function hashText(text = '') {
+  let hash = 0
+  for (let i = 0; i < text.length; i += 1) hash = (hash * 31 + text.charCodeAt(i)) >>> 0
+  return hash
 }
 
-export function nameDrink(recipe) {
+function pick(list, seed, offset = 0) {
+  return list[(seed + offset) % list.length]
+}
+
+export function nameDrink(recipe, context = {}) {
   const top = recipe.slice(0, 2)
   if (top.length === 0) return '空杯'
-  const a = NAME_PREFIX[top[0].category] || '今日'
-  const b = NAME_SUFFIX[(top[1] || top[0]).category] || '特调'
-  return `${a}${b}`
+  const main = top[0].category
+  const second = (top[1] || top[0]).category
+  const seed = hashText([
+    context.mode,
+    context.bartender?.id,
+    context.date,
+    recipe.map((r) => `${r.category}:${Math.round((r.ratio || 0) * 100)}`).join('|'),
+    (context.todos || []).map((t) => t.title).join('|'),
+  ].join('/'))
+  const mood = pick(NAME_MOODS[main] || ['今日'], seed, 1)
+  const core = pick(NAME_CORES[second] || ['特调'], seed, 5)
+  const finish = pick(NAME_FINISH, seed, recipe.length)
+  if (recipe.length >= 4 && seed % 3 === 0) return `${mood}${core}${finish}`
+  if (seed % 4 === 0) return `${mood}${core}`
+  return `${mood}${finish}`
 }
 
 // —— 小精灵优化建议（只讲任务，不剧透原料/茶底，保留揭晓惊喜）——
