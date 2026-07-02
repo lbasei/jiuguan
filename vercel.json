@@ -4,7 +4,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "/api/db"
+      "destination": "/api/index"
     }
   ]
 }
