@@ -4,7 +4,7 @@ import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { createHash, createHmac, randomInt, randomUUID } from 'node:crypto'
 
-const DB_DIR = path.resolve(process.cwd(), '.data')
+const DB_DIR = process.env.LIFE_KITCHEN_DB_DIR || (process.env.VERCEL ? '/tmp/life-kitchen-data' : path.resolve(process.cwd(), '.data'))
 const DB_FILE = path.join(DB_DIR, 'life-kitchen-db.json')
 let petProcess = null
 
