@@ -317,7 +317,7 @@ export default function RevealPage() {
             type="button"
             role="tab"
             aria-selected={activePanel === tab.key}
-            onClick={() => setActivePanel((current) => current === tab.key ? '' : tab.key)}
+            onClick={() => setActivePanel(tab.key)}
           >
             <i aria-hidden="true" />
             <span>{tab.label}</span>
@@ -325,24 +325,29 @@ export default function RevealPage() {
         ))}
       </div>
 
-      <div className="reveal-panel-stage">
+      <div className={`reveal-panel-stage ${activePanel ? 'as-fullscreen' : ''}`}>
+        {activePanel && (
+          <button className="reveal-panel-close" type="button" onClick={() => setActivePanel('')} aria-label="关闭面板">
+            ×
+          </button>
+        )}
         {activePanel === 'analysis' && (
           <div className="card reveal-in result-dashboard compact-reveal-panel" style={{ animationDelay: '.04s' }}>
             <div className="report-head">
               <div>
-                <label className="field">杯底小记</label>
-                <div className="report-title">{report.stateProfile?.title || '今天记录'}</div>
+                <label className="field">今日小记</label>
+                <div className="report-title">{report.stateProfile?.title || '今天的节奏'}</div>
                 <p className="report-summary">{report.stateProfile?.summary || card.comment}</p>
               </div>
             </div>
 
-            <div className="dashboard-board">
-              <MixDial recipe={card.recipe} score={report.score} />
+            <div className="dashboard-board simple-analysis-board">
               <div className="dashboard-meters">
                 <MiniMeter label="完成片段" value={`${report.completedCount ?? 0}`} tone="gold" />
                 <MiniMeter label="调配时间" value={formatDuration(minutes)} tone="mint" />
                 <MiniMeter label="时间贴合" value={`${Math.round(card.timeAccuracy * 100)}%`} tone="pink" />
               </div>
+              <MixDial recipe={card.recipe} score={report.score} />
             </div>
 
             {!!report.timeTuning?.length && (

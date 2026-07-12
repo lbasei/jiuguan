@@ -22,7 +22,7 @@ export default function LoginPage({ onAuthenticated }) {
   async function requestCode() {
     if (loading) return
     if (!canSend) {
-      setMessage('先填手机号和邀请码 ZHONGZHONG，再取验证码。')
+      setMessage('先填手机号和酒馆请柬码，再取验证码。')
       return
     }
     setLoading(true)
@@ -39,7 +39,7 @@ export default function LoginPage({ onAuthenticated }) {
         setCode(data.devCode)
         setMessage(`测试验证码：${data.devCode}，已自动填入。`)
       } else {
-        setMessage('验证码已送到。')
+        setMessage(data.provider === 'dev-console' ? '测试验证码已生成。' : '验证码已送到手机。')
       }
     } catch (error) {
       const detail = error?.data?.detail || error?.data?.message || error?.data?.error
@@ -125,7 +125,7 @@ export default function LoginPage({ onAuthenticated }) {
         </label>
 
         {message && <div className={`login-message ${devCode ? 'dev' : ''}`}>{message}</div>}
-        <div className="login-hint">内测邀请码：ZHONGZHONG。未接短信服务时，测试验证码固定为 123456。</div>
+        <div className="login-hint">默认内测码：ZHONGZHONG。掌柜可生成薄荷、姜、柠檬等种种主题请柬；未接短信服务时，测试验证码固定为 123456。</div>
 
         <button className="login-submit" type="button" onClick={login} disabled={loading}>
           {loading ? '核验中' : '入座'}

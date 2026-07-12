@@ -25,6 +25,9 @@ function normalizeProfile(profile = {}) {
     gender: ['male', 'female', 'neutral'].includes(profile.gender) ? profile.gender : 'neutral',
     locationLabel: String(profile.locationLabel || profile.locationName || '').trim().slice(0, 36),
     coords: profile.coords || null,
+    preferences: String(profile.preferences || '').trim().slice(0, 80),
+    avoidances: String(profile.avoidances || '').trim().slice(0, 80),
+    habitSummary: String(profile.habitSummary || '').trim().slice(0, 120),
     updatedAt: new Date().toISOString(),
   }
 }
@@ -82,8 +85,12 @@ function recompute(state) {
   const ingredients = extractIngredients(state.todos)
   const recipe = aggregateRecipe(ingredients)
   // 手动排序过就保留用户的顺序，否则按策略重排
-  const order = state.manualSorted && state.order.length === state.todos.length
-    ? state.order
+  const todosById = new Map(state.todos.map((todo) => [todo.id, todo]))
+  const keptManualOrder = state.manualSorted && state.order.length === state.todos.length
+    ? state.order.map((todo) => todosById.get(todo.id)).filter(Boolean)
+    : null
+  const order = keptManualOrder?.length === state.todos.length
+    ? keptManualOrder
     : orderTodos(state.todos, state.strategy)
   const drinkName = nameDrink(recipe, { bartender, mode: state.assistantMode, todos: state.todos, date: state.today })
   const judge = judgeRecipe(recipe, bartender)
@@ -181,6 +188,15 @@ function reducer(state, action) {
       const todos = state.todos.map((t) => (t.id === action.id ? { ...t, ...action.patch } : t))
       return recompute({ ...state, todos })
     }
+
+    case 'REORDER_TODOS':
+      return recompute({
+        ...state,
+        todos: action.todos,
+        order: action.todos,
+        manualSorted: true,
+        strategy: 'manual',
+      })
 
     case 'REMOVE_TODO': {
       const records = { ...state.records }

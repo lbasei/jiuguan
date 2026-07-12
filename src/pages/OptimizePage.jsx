@@ -11,6 +11,7 @@ import { onPetStatus, startPetSync, stopPetSync, pushPetState, ensurePetState, o
 import { formatDuration } from '../engine/time.js'
 import { getRecipeVolumeLayers } from '../engine/recipeVolume.js'
 import { canCompleteTask } from '../engine/execution.js'
+import { notifyTaskDone } from '../engine/uiSettings.js'
 
 const OPTIMIZATION_PROPS = [
   {
@@ -81,7 +82,7 @@ const VESSELS = [
 
 const LOCKED_VESSELS = [
   { id: 'chalice', label: '星月圣杯', hint: '完成 3 杯后解锁' },
-  { id: 'teapot', label: '月光茶壶', hint: '连续记录 7 天后解锁' },
+  { id: 'teapot', label: '月光茶壶', hint: '酒馆来访 7 天后解锁' },
   { id: 'crystal', label: '水晶高脚杯', hint: '保存到冰柜后解锁' },
 ]
 
@@ -446,6 +447,35 @@ export default function OptimizePage() {
       setElapsed(0)
       activeStartedAt.current = null
     }
+    notifyTaskDone(t.title)
+    syncNextState(todoId)
+  }
+
+  function checkOffTask(todoId) {
+    if (!todoId) return
+    const t = state.order.find((x) => x.id === todoId)
+    if (!t || statusOf(t)) return
+    const completedAt = Date.now()
+    const actualMin = activeId === todoId
+      ? Math.max(1, Math.round(elapsed / 60))
+      : Math.max(1, t.estimatedTime || 1)
+    dispatch({
+      type: 'SET_RECORD',
+      todoId,
+      record: {
+        status: 'completed',
+        actualTime: actualMin,
+        completedAt,
+        checkedOnly: activeId !== todoId,
+      },
+    })
+    lastCompleteTime.current = completedAt
+    if (activeId === todoId) {
+      setActiveId(null)
+      setElapsed(0)
+      activeStartedAt.current = null
+    }
+    notifyTaskDone(t.title)
     syncNextState(todoId)
   }
 
@@ -471,6 +501,7 @@ export default function OptimizePage() {
     setActiveId(null)
     setElapsed(0)
     activeStartedAt.current = null
+    notifyTaskDone(state.order.find((t) => t.id === id)?.title)
     syncNextState(id)
   }
 
@@ -485,6 +516,7 @@ export default function OptimizePage() {
   }
 
   function requestFinalize() {
+    if (!hasCompleted) return
     setConfirmGenerate(true)
   }
 
@@ -514,26 +546,43 @@ export default function OptimizePage() {
 
   const startSwipeSort = (event, id) => {
     if (activeId) return
-    if (event.target.closest?.('button')) return
-    if (!event.target.closest?.('.swipe-grip') && !event.currentTarget.classList.contains('recipe-sort-item')) return
+    if (event.target.closest?.('button, input, textarea, select, a')) return
+    const fromHandle = Boolean(event.target.closest?.('.swipe-grip'))
     if (event.button != null && event.button !== 0) return
-    event.preventDefault()
     event.currentTarget.setPointerCapture?.(event.pointerId)
-    dragRef.current = { id, pointerId: event.pointerId, y: event.clientY }
-    setDraggingId(id)
+    dragRef.current = {
+      id,
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      y: event.clientY,
+      active: fromHandle,
+    }
+    if (fromHandle) {
+      event.preventDefault()
+      setDraggingId(id)
+    }
   }
 
   const moveSwipeSort = (event) => {
     const drag = dragRef.current
     if (!drag || drag.pointerId !== event.pointerId) return
+    const totalDy = event.clientY - drag.startY
+    if (!drag.active) {
+      if (Math.abs(totalDy) < 34) return
+      drag.active = true
+      setDraggingId(drag.id)
+    }
     event.preventDefault()
     const index = state.order.findIndex((t) => t.id === drag.id)
     if (index === -1) return
+    const row = rowRefs.current.get(drag.id)
+    const rowHeight = row?.getBoundingClientRect().height || 76
+    const threshold = Math.max(72, rowHeight * 0.74)
     const dy = event.clientY - drag.y
-    if (Math.abs(dy) < 38) return
+    if (Math.abs(dy) < threshold) return
     const dir = dy > 0 ? 1 : -1
     if (index + dir < 0 || index + dir >= state.order.length) return
-    drag.y = event.clientY
+    drag.y += dir * threshold
     moveItem(index, dir)
   }
 
@@ -543,15 +592,6 @@ export default function OptimizePage() {
       dragRef.current = null
       setDraggingId(null)
     }
-  }
-
-  const wheelSwipeSort = (event, id) => {
-    if (activeId) return
-    if (Math.abs(event.deltaY) < 16) return
-    event.preventDefault()
-    const index = state.order.findIndex((t) => t.id === id)
-    if (index === -1) return
-    moveItem(index, event.deltaY > 0 ? 1 : -1)
   }
 
   return (
@@ -569,17 +609,17 @@ export default function OptimizePage() {
               {completedCount}/{state.order.length} 完成
             </span>
           </div>
-          <button className="btn-ghost compact-action result-jump-action" disabled={!hasOrder || activeId} onClick={requestFinalize}>
-            <span>{hasCompleted ? '出杯看结果 →' : '空杯看结果 →'}</span>
-            <small>{hasCompleted ? '查看最终出品' : '还没完成，会是空杯'}</small>
+          <button className="btn-ghost compact-action result-jump-action" disabled={!hasCompleted || activeId} onClick={requestFinalize}>
+            <span>{hasCompleted ? '出杯看结果 →' : '完成后出杯'}</span>
+            <small>{hasCompleted ? '查看最终出品' : '先完成或打勾一项'}</small>
           </button>
         </div>
 
         <div className={`order-dashboard ${isQuickMode ? 'quick-dashboard' : ''} ${stageMode === 'execute' ? 'is-execute-stage' : 'is-recipe-stage'} ${active ? 'is-focus-brew' : ''}`}>
           <div className="order-blueprint" aria-label="酒单比例图">
             <div className="panel-title">
-              <strong>杯中比例</strong>
-              <span>{totalMinutes}min</span>
+              <strong>{active ? '专注调配' : '杯中比例'}</strong>
+              <span>{formatDuration(totalMinutes)}</span>
             </div>
             <div className={`blueprint-glass vessel-${state.drinkVessel || 'highball'} ${active ? 'is-brewing' : ''}`} aria-hidden="true">
               <div className="blueprint-liquid">
@@ -600,15 +640,16 @@ export default function OptimizePage() {
               </div>
             </div>
             <div className="blueprint-table" aria-hidden="true" />
-            {canEditRecipe && <div className={`drink-orbit slice-${sliceView}`} aria-label="调配酒单显示模式">
+            {false && canEditRecipe && <div className={`drink-orbit slice-${sliceView}`} aria-label="调配酒单显示模式">
               <div className="slice-view-switch" role="group" aria-label="调配酒单显示模式">
-                <button type="button" className={sliceView === 'simple' ? 'on' : ''} onClick={() => setSliceView('simple')}>简约版</button>
-                <button type="button" className={sliceView === 'full' ? 'on' : ''} onClick={() => setSliceView('full')}>复杂版</button>
+                <span>调配方式</span>
+                <button type="button" className={sliceView === 'simple' ? 'on' : ''} onClick={() => setSliceView('simple')}>轻饮</button>
+                <button type="button" className={sliceView === 'full' ? 'on' : ''} onClick={() => setSliceView('full')}>细调</button>
               </div>
               {isSimpleRecipeView ? (
                 <div className="simple-slice-card" aria-label="简约空闲安排">
                   <div className="simple-slice-head">
-                    <strong>{totalMinutes}min</strong>
+                    <strong>{formatDuration(totalMinutes)}</strong>
                     <span>{freeSliceItems.length} 项</span>
                   </div>
                   <div className="simple-slice-track">
@@ -623,7 +664,7 @@ export default function OptimizePage() {
                       >
                         <span>{index + 1}</span>
                         <strong>{item.title}</strong>
-                        <em>{item.minutes}min</em>
+                        <em>{formatDuration(item.minutes)}</em>
                       </div>
                     ))}
                   </div>
@@ -681,7 +722,7 @@ export default function OptimizePage() {
                 </>
               )}
             </div>}
-            {canEditRecipe && !isSimpleRecipeView && <div className="vessel-picker" role="group" aria-label="选择今日器皿">
+            {false && canEditRecipe && !isSimpleRecipeView && <div className="vessel-picker" role="group" aria-label="选择今日器皿">
               {VESSELS.map((vessel) => (
                 <button
                   key={vessel.id}
@@ -716,7 +757,7 @@ export default function OptimizePage() {
                 <span>{state.customVesselLabel || '自定义杯'}</span>
               </button>
             </div>}
-            {canEditRecipe && !isSimpleRecipeView && vesselPanel && (
+            {false && canEditRecipe && !isSimpleRecipeView && vesselPanel && (
               <div className={`vessel-panel vessel-panel-${vesselPanel}`} aria-live="polite">
                 {vesselPanel === 'more' ? (
                   LOCKED_VESSELS.map((vessel) => (
@@ -788,7 +829,7 @@ export default function OptimizePage() {
 
           {canEditRecipe && <div className="recipe-sort-panel" aria-label="配方层次排序">
             <div className="panel-title mini-title">
-              <strong>配方层次</strong>
+              <strong>清单和时间</strong>
               <span>拖动排序</span>
             </div>
             <div className="recipe-sort-list">
@@ -804,7 +845,6 @@ export default function OptimizePage() {
                   onPointerMove={moveSwipeSort}
                   onPointerUp={stopSwipeSort}
                   onPointerCancel={stopSwipeSort}
-                  onWheel={(event) => wheelSwipeSort(event, t.id)}
                 >
                   <span
                     className={`secret-mark ${SECRET_SHAPES[t.taskType] || 'drop'}`}
@@ -821,16 +861,14 @@ export default function OptimizePage() {
                   <div>
                     <strong>{String(i + 1).padStart(2, '0')}</strong>
                     <span title={t.title}>{briefTitle(t.title)}</span>
-                  </div>
-                  <div className="sort-stepper" aria-label="调整这一层的位置">
-                    <button type="button" disabled={i === 0} onClick={() => moveItem(i, -1)} aria-label="上移">↑</button>
-                    <button type="button" disabled={i === state.order.length - 1} onClick={() => moveItem(i, 1)} aria-label="下移">↓</button>
+                    <em>{formatDuration(t.estimatedTime)}</em>
                   </div>
                 </div>
               ))}
             </div>
-            <button className="btn-primary recipe-submit" type="button" disabled={!hasOrder} onClick={() => dispatch({ type: 'GO', step: 'execute' })}>
-              把配方交给吧台
+            <button className="btn-primary recipe-submit service-bell-action" type="button" disabled={!hasOrder} onClick={() => dispatch({ type: 'GO', step: 'execute' })}>
+              <span className="service-bell-icon" aria-hidden="true"><span /><span /><span /></span>
+              <strong>交给吧台</strong>
             </button>
           </div>}
 
@@ -884,7 +922,11 @@ export default function OptimizePage() {
                   </div>
                 ) : (
                   <div className="single-task-actions">
-                    <button className="btn-primary" type="button" onClick={() => start(currentTask)}>开始这一项</button>
+                    <button className="btn-primary" type="button" onClick={() => start(currentTask)}>计时专注</button>
+                    <button className="task-complete-check quiet-check" type="button" onClick={() => checkOffTask(currentTask.id)}>
+                      <span aria-hidden="true" />
+                      直接打勾
+                    </button>
                   </div>
                 )}
               </div>
@@ -953,24 +995,22 @@ export default function OptimizePage() {
       <div className="btn-row">
         <button className="btn-ghost" onClick={() => dispatch({ type: 'GO', step: 'todos' })}>← 重新倾诉</button>
         <div className="spacer" />
-        <button className="btn-primary result-final-btn" onClick={requestFinalize}>
-          {hasCompleted ? '出杯看结果 →' : '留一只空杯 →'}
+        <button className="btn-primary result-final-btn" disabled={!hasCompleted} onClick={requestFinalize}>
+          {hasCompleted ? '出杯看结果 →' : '完成后出杯'}
         </button>
       </div>
 
       {confirmGenerate && (
         <div className="confirm-panel" role="dialog" aria-modal="true" aria-label="确认直接调配">
           <div className="confirm-card">
-            <div className="confirm-title">{hasCompleted ? '现在出杯？' : '现在看空杯？'}</div>
+            <div className="confirm-title">现在出杯？</div>
             <p>
-              {hasCompleted
-                ? '会进入最终出品页；未完成的事项会留在记录里，不会算作完成。'
-                : '还没有完成项，结果页会显示空杯，适合只想先存个记录的时候。'}
+              会进入最终出品页；未完成的事项会留在记录里，不会算作完成。
             </p>
             <div className="btn-row">
               <button className="btn-ghost" onClick={() => setConfirmGenerate(false)}>再看看清单</button>
               <div className="spacer" />
-              <button className="btn-primary" onClick={finalizeNow}>{hasCompleted ? '确认出杯' : '确认空杯'}</button>
+              <button className="btn-primary" onClick={finalizeNow}>确认出杯</button>
             </div>
           </div>
         </div>

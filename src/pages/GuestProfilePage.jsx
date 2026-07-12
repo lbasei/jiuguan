@@ -14,6 +14,9 @@ export default function GuestProfilePage({ onStart }) {
     gender: state.userProfile?.gender || 'neutral',
     locationLabel: state.userProfile?.locationLabel || '',
     coords: state.userProfile?.coords || null,
+    preferences: state.userProfile?.preferences || '',
+    avoidances: state.userProfile?.avoidances || '',
+    habitSummary: state.userProfile?.habitSummary || '',
   }))
   const [locating, setLocating] = useState(false)
   const [locationHint, setLocationHint] = useState('')
@@ -68,7 +71,7 @@ export default function GuestProfilePage({ onStart }) {
         </div>
 
         <label className="guest-field">
-          <span>怎么称呼你</span>
+          <span>顾客名牌</span>
           <input
             value={profile.name}
             onChange={(event) => updateProfile({ name: event.target.value })}
@@ -78,7 +81,7 @@ export default function GuestProfilePage({ onStart }) {
         </label>
 
         <div className="guest-field">
-          <span>签文称谓</span>
+          <span>酒馆称谓</span>
           <div className="guest-gender" role="radiogroup" aria-label="称谓">
             {[
               ['female', '小姐'],
@@ -98,7 +101,7 @@ export default function GuestProfilePage({ onStart }) {
         </div>
 
         <label className="guest-field">
-          <span>今晚从哪里来</span>
+          <span>来访方位</span>
           <div className="guest-location">
             <input
               value={profile.locationLabel}
@@ -111,8 +114,38 @@ export default function GuestProfilePage({ onStart }) {
           {locationHint && <small>{locationHint}</small>}
         </label>
 
+        <label className="guest-field">
+          <span>常点偏好</span>
+          <input
+            value={profile.preferences}
+            onChange={(event) => updateProfile({ preferences: event.target.value })}
+            placeholder="例如：喜欢清爽、需要先做最难的事"
+            maxLength={80}
+          />
+        </label>
+
+        <label className="guest-field">
+          <span>忌口提醒</span>
+          <input
+            value={profile.avoidances}
+            onChange={(event) => updateProfile({ avoidances: event.target.value })}
+            placeholder="例如：不要安排太满、晚上不碰重任务"
+            maxLength={80}
+          />
+        </label>
+
+        <label className="guest-field">
+          <span>熟客习惯</span>
+          <textarea
+            value={profile.habitSummary}
+            onChange={(event) => updateProfile({ habitSummary: event.target.value })}
+            placeholder="种种慢慢记住：你常拖在哪一步、几点比较有精神、休息多久最有效。"
+            maxLength={120}
+          />
+        </label>
+
         <button className="guest-next" type="button" onClick={start}>
-          进入酒馆
+          存入顾客卡
         </button>
       </section>
     </main>

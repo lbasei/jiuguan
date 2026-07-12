@@ -1,9 +1,10 @@
 // 步骤二：在吧台和今日种种聊天 → 结构化 Todo（可编辑）。
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useStore } from '../store/store.jsx'
 import { parseTodosSmart } from '../engine/llm.js'
 import { transcribeAudio } from '../engine/voice.js'
+import { formatDuration } from '../engine/time.js'
 import { getBartender } from '../data/bartenders.js'
 import { requestSeedanceMotion } from '../engine/seedance.js'
 import dailyModeIcon from '../../assets/mode-icons/daily-icon.png'
@@ -45,7 +46,7 @@ const ASSISTANT_MODES = {
     field: '这个长期目标想怎么推进？',
     action: '拆成今日任务',
     redo: '重新拆解',
-    paper: '长期酿造纸',
+    paper: '配方',
     next: '生成今日推进安排 →',
     note: (count) => `种种从长期目标里拆出了 ${count} 个今日推进动作，后续可以存进你的冰柜记录。`,
     placeholder: '我想在一个月内把作品集整理出来，但现在材料很散，也不知道每天该推进什么。今天只有一小时，可以先做哪几步？',
@@ -58,7 +59,8 @@ const MODE_ICONS = {
   long_goal: longGoalModeIcon,
 }
 
-const TIME_PRESETS = [15, 25, 45]
+const TIME_PRESETS = [25, 45, 120]
+const MAX_ESTIMATE_MINUTES = 720
 
 const TASK_TONES = {
   deep_work: { bg: '#E4F7F4', line: '#8BCDC7', dot: '#5FB9B4' },
@@ -78,7 +80,7 @@ function getTaskTone(taskType) {
 function TimeWheel({ value, label, onChange }) {
   const minutes = Number(value || 30)
   const [draft, setDraft] = useState(String(minutes))
-  const clamp = (next) => Math.max(1, Math.min(240, Math.round(next)))
+  const clamp = (next) => Math.max(1, Math.min(MAX_ESTIMATE_MINUTES, Math.round(next)))
   const set = (next) => {
     const safe = clamp(next)
     setDraft(String(safe))
@@ -101,6 +103,7 @@ function TimeWheel({ value, label, onChange }) {
 
   return (
     <div className="time-counter">
+      <div className="time-readable" aria-hidden="true">{formatDuration(minutes)}</div>
       <div className="time-desktop-editor" role="group" aria-label={label}>
         <button type="button" className="counter-step minus" aria-label={`${label} 减一分钟`} onClick={() => nudge(-1)}>
           <span />
@@ -110,7 +113,7 @@ function TimeWheel({ value, label, onChange }) {
             type="number"
             inputMode="numeric"
             min="1"
-            max="240"
+            max={MAX_ESTIMATE_MINUTES}
             step="1"
             value={draft}
             aria-label={label}
@@ -131,7 +134,7 @@ function TimeWheel({ value, label, onChange }) {
               }
             }}
           />
-          <span>min</span>
+          <span>分钟</span>
         </label>
         <button type="button" className="counter-step plus" aria-label={`${label} 加一分钟`} onClick={() => nudge(1)}>
           <span />
@@ -145,7 +148,7 @@ function TimeWheel({ value, label, onChange }) {
             className={minutes === preset ? 'active' : ''}
             onClick={() => set(preset)}
           >
-            {preset}
+            {formatDuration(preset)}
           </button>
         ))}
       </div>
@@ -340,9 +343,13 @@ export default function TodoPage() {
   const [parseMeta, setParseMeta] = useState(null)
   const [modeMotion, setModeMotion] = useState({ videoUrl: '', loading: false })
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [draggingId, setDraggingId] = useState(null)
   const mode = state.assistantMode || 'daily'
   const isQuickMode = state.workflowMode !== 'full'
   const modeConfig = ASSISTANT_MODES[mode] || ASSISTANT_MODES.daily
+  const rowRefs = useRef(new Map())
+  const prevRects = useRef(null)
+  const dragRef = useRef(null)
   const recognitionRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
@@ -353,6 +360,22 @@ export default function TodoPage() {
   useEffect(() => {
     setLineIndex(0)
   }, [bartender.id])
+
+  useLayoutEffect(() => {
+    if (!prevRects.current) return
+    rowRefs.current.forEach((el, id) => {
+      const before = prevRects.current.get(id)
+      if (!before) return
+      const after = el.getBoundingClientRect()
+      const dy = before.top - after.top
+      if (!dy) return
+      el.animate(
+        [{ transform: `translateY(${dy}px)` }, { transform: 'translateY(0)' }],
+        { duration: 240, easing: 'cubic-bezier(.2,.8,.2,1)' }
+      )
+    })
+    prevRects.current = null
+  }, [state.todos])
 
   useEffect(() => {
     let cancelled = false
@@ -381,6 +404,9 @@ export default function TodoPage() {
     setRecipeCollapsed(false)
     setBottling(false)
     setLoading(false)
+    window.setTimeout(() => {
+      dispatch({ type: 'GO', step: 'optimize' })
+    }, 120)
   }
 
   function bottleRecipe() {
@@ -392,8 +418,71 @@ export default function TodoPage() {
   }
 
   function setTodoTime(todo, minutes) {
-    const next = Math.max(1, Math.min(240, Math.round(Number(minutes || 1))))
+    const next = Math.max(1, Math.min(MAX_ESTIMATE_MINUTES, Math.round(Number(minutes || 1))))
     dispatch({ type: 'UPDATE_TODO', id: todo.id, patch: { estimatedTime: next } })
+  }
+
+  function captureTodoRects() {
+    prevRects.current = new Map()
+    rowRefs.current.forEach((el, id) => prevRects.current.set(id, el.getBoundingClientRect()))
+  }
+
+  function moveTodo(index, dir) {
+    const nextIndex = index + dir
+    if (nextIndex < 0 || nextIndex >= todos.length) return
+    captureTodoRects()
+    const nextTodos = [...todos]
+    ;[nextTodos[index], nextTodos[nextIndex]] = [nextTodos[nextIndex], nextTodos[index]]
+    dispatch({ type: 'REORDER_TODOS', todos: nextTodos })
+  }
+
+  function startTodoDrag(event, id) {
+    if (event.button != null && event.button !== 0) return
+    if (event.target.closest?.('button, input, textarea, select, a, .time-counter')) return
+    const fromHandle = Boolean(event.target.closest?.('.slip-drag-handle'))
+    if (event.pointerType === 'touch' && !fromHandle) return
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    dragRef.current = {
+      id,
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      y: event.clientY,
+      active: fromHandle,
+    }
+    if (fromHandle) {
+      event.preventDefault()
+      setDraggingId(id)
+    }
+  }
+
+  function moveTodoDrag(event) {
+    const drag = dragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    const totalDy = event.clientY - drag.startY
+    if (!drag.active) {
+      if (Math.abs(totalDy) < 34) return
+      drag.active = true
+      setDraggingId(drag.id)
+    }
+    event.preventDefault()
+    const index = todos.findIndex((t) => t.id === drag.id)
+    if (index === -1) return
+    const row = rowRefs.current.get(drag.id)
+    const rowHeight = row?.getBoundingClientRect().height || 76
+    const threshold = Math.max(58, rowHeight * 0.62)
+    const dy = event.clientY - drag.y
+    if (Math.abs(dy) < threshold) return
+    const dir = dy > 0 ? 1 : -1
+    if (index + dir < 0 || index + dir >= todos.length) return
+    drag.y += dir * threshold
+    moveTodo(index, dir)
+  }
+
+  function stopTodoDrag(event) {
+    if (dragRef.current?.pointerId !== event.pointerId) return
+    event.currentTarget.releasePointerCapture?.(event.pointerId)
+    dragRef.current = null
+    setDraggingId(null)
   }
 
   function petTalk() {
@@ -528,6 +617,7 @@ export default function TodoPage() {
 
   const todos = state.todos
   const modeLine = MODE_TALK[mode] || MODE_TALK.daily
+  const showParsedPaper = false
 
   return (
     <div>
@@ -611,7 +701,7 @@ export default function TodoPage() {
         </div>
       </div>
 
-      {todos.length > 0 && (
+      {showParsedPaper && todos.length > 0 && (
         <div className={`recipe-scroll ${isQuickMode ? 'quick-list' : ''} ${recipeCollapsed ? 'collapsed' : 'unfurled'} ${bottling ? 'is-bottling' : ''}`}>
           <div className="scroll-head">
             <div>
@@ -629,17 +719,30 @@ export default function TodoPage() {
                   return (
                   <div
                     key={t.id}
-                    className={`ingredient-slip task-tone-${t.taskType || 'fallback'}`}
+                    className={`ingredient-slip task-tone-${t.taskType || 'fallback'} ${draggingId === t.id ? 'is-dragging' : ''}`}
+                    ref={(el) => {
+                      if (el) rowRefs.current.set(t.id, el)
+                      else rowRefs.current.delete(t.id)
+                    }}
                     style={{
                       '--slip-index': index,
                       '--task-bg': tone.bg,
                       '--task-line': tone.line,
                       '--task-dot': tone.dot,
                     }}
+                    onPointerDown={(event) => startTodoDrag(event, t.id)}
+                    onPointerMove={moveTodoDrag}
+                    onPointerUp={stopTodoDrag}
+                    onPointerCancel={stopTodoDrag}
                   >
                     <span className="slip-mark" aria-hidden="true">
                       <span className="slip-dot" />
                       <span className="slip-order">{String(index + 1).padStart(2, '0')}</span>
+                    </span>
+                    <span className="slip-drag-handle" aria-label="拖动调整顺序" role="button" tabIndex={0}>
+                      <span />
+                      <span />
+                      <span />
                     </span>
                     <input
                       className="slip-title"

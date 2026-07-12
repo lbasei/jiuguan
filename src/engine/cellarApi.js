@@ -101,6 +101,20 @@ export async function sendLoginCode({ phone, inviteCode }) {
   })
 }
 
+export async function generateInviteCodes({ theme = 'zhongzhong', count = 1, maxUses = 1, label = '种种请柬', adminKey = '' } = {}) {
+  return request('/api/invites/generate', {
+    method: 'POST',
+    headers: adminKey ? { 'x-admin-key': adminKey } : {},
+    body: JSON.stringify({ theme, count, maxUses, label }),
+  })
+}
+
+export async function fetchInviteCodes(adminKey = '') {
+  return request('/api/invites', {
+    headers: adminKey ? { 'x-admin-key': adminKey } : {},
+  })
+}
+
 export async function loginWithPhoneCode({ phone, code, inviteCode, profile }) {
   return request('/api/auth/login', {
     method: 'POST',

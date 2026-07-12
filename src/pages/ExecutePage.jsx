@@ -10,6 +10,7 @@ import { BODY } from './BartenderPage.jsx'
 import { onPetStatus, startPetSync, stopPetSync, pushPetState, onPetAction } from '../engine/petBridge.js'
 import { formatDuration } from '../engine/time.js'
 import { canAutoFinalize, canCompleteTask } from '../engine/execution.js'
+import { notifyTaskDone } from '../engine/uiSettings.js'
 
 // 按"调制手法"描述，不点名原料（茶底/奶泡留到饮品生成页才展示）
 const ACTION = {
@@ -183,6 +184,7 @@ export default function ExecutePage() {
     }
 
     // 同步下一状态给桌宠
+    notifyTaskDone(t.title)
     syncNextState(todoId)
     if (canAutoFinalize({ order: state.order, records: nextRecords })) {
       dispatch({ type: 'FINALIZE' })
@@ -239,6 +241,7 @@ export default function ExecutePage() {
     setActiveId(null)
     setElapsed(0)
     activeStartedAt.current = null
+    notifyTaskDone(state.order.find((t) => t.id === id)?.title)
     syncNextState(id)
     if (canAutoFinalize({ order: state.order, records: nextRecords })) {
       dispatch({ type: 'FINALIZE' })
@@ -279,6 +282,7 @@ export default function ExecutePage() {
   const statusOf = (t) => state.records[t.id]?.status
   const completedCount = state.order.filter((t) => statusOf(t) === 'completed').length
   const hasCompleted = completedCount > 0
+  const nextTask = state.order.find((t) => !statusOf(t))
   const executionPlan = state.order.reduce((items, task, index) => {
     const start = index === 0 ? planStartMinute.current : items[index - 1].end
     const end = start + Math.max(1, task.estimatedTime || 1)
@@ -343,42 +347,35 @@ export default function ExecutePage() {
         </div>
       )}
 
-      <div className="card">
-        <div className="execute-toolbar">
+      <div className="card execute-compact-card">
+        <div className="execute-toolbar compact-final-toolbar">
           <div>
-            <div className="toolbar-title">实际执行清单</div>
-            <div className="muted-note">不用按 1 到 5。计时开始后只记录真实经过的时间。</div>
+            <div className="toolbar-title">吧台操作台</div>
+            <div className="muted-note">点一张时间卡开始。完成后，种种会记下真实用时。</div>
           </div>
           <button className="btn-ghost result-jump-action" disabled={activeId} onClick={requestFinalize}>
             <span>{hasCompleted ? '出杯看结果 →' : '空杯看结果 →'}</span>
             <small>{hasCompleted ? '查看最终出品' : '还没完成，会是空杯'}</small>
           </button>
         </div>
-        {state.order.map((t, i) => {
-          const st = statusOf(t)
-          return (
-            <div
-              key={t.id}
-              className={`exec-row ${st === 'completed' ? 'done' : ''} ${st === 'skipped' ? 'skipped' : ''} ${activeId === t.id ? 'current' : ''}`}
-              style={{ '--time-tone': PLAN_TONES[t.taskType] || PLAN_TONES.fallback }}
-            >
-              <span className="idx">{i + 1}</span>
-              <div className="et">
-                <div className="ettitle" title={t.title}>{briefTitle(t.title)}</div>
-                <span className="muted-note">约 {formatDuration(t.estimatedTime)}</span>
-              </div>
-              {st === 'completed' ? (
-                <span className="tag">完成</span>
-              ) : st === 'skipped' ? (
-                <span className="muted-note">已跳过</span>
-              ) : activeId === t.id ? (
-                <span className="muted-note">进行中…</span>
-              ) : (
-                <button className="btn-ghost" disabled={!!activeId} onClick={() => start(t)}>开始</button>
-              )}
+        <div className={`execute-current-strip ${active ? 'brewing' : ''}`} style={{ '--time-tone': PLAN_TONES[(active || nextTask)?.taskType] || PLAN_TONES.fallback }}>
+          <span className="idx">{active ? '▶' : nextTask ? state.order.findIndex((t) => t.id === nextTask.id) + 1 : '✓'}</span>
+          <div className="et">
+            <div className="ettitle" title={(active || nextTask)?.title || '今日已收工'}>
+              {active ? briefTitle(active.title) : nextTask ? briefTitle(nextTask.title) : '今日已收工'}
             </div>
-          )
-        })}
+            <span className="muted-note">
+              {active ? `计时中 ${mmss(elapsed)}` : nextTask ? `约 ${formatDuration(nextTask.estimatedTime)}` : '可以出杯了'}
+            </span>
+          </div>
+          {active ? (
+            <span className="tag">进行中</span>
+          ) : nextTask ? (
+            <button className="btn-ghost" disabled={!!activeId} onClick={() => start(nextTask)}>开始这一项</button>
+          ) : (
+            <button className="btn-primary" onClick={requestFinalize}>出杯</button>
+          )}
+        </div>
       </div>
 
       <div className="btn-row">

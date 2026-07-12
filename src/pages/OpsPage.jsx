@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchOpsDashboard } from '../engine/cellarApi.js'
+import { formatDuration } from '../engine/time.js'
 
 function Metric({ label, value, tone = '' }) {
   return (
@@ -96,7 +97,7 @@ export default function OpsPage() {
                 {(ops.latestSchedules || []).length ? ops.latestSchedules.slice(0, 10).map((item, index) => (
                   <div className="ops-row" key={`${item.drinkId}-${index}`}>
                     <strong>{item.drinkName || '未命名特调'}</strong>
-                    <span>{item.status === 'completed' ? '已完成' : item.status === 'skipped' ? '留到下次' : '进行中'} · {item.actualTime || item.estimatedTime || 0} min</span>
+                    <span>{item.status === 'completed' ? '已完成' : item.status === 'skipped' ? '留到下次' : '进行中'} · {formatDuration(item.actualTime || item.estimatedTime || 0)}</span>
                   </div>
                 )) : <EmptyLine />}
               </div>

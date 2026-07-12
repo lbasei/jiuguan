@@ -8,6 +8,17 @@ const DB_DIR = process.env.LIFE_KITCHEN_DB_DIR || (process.env.VERCEL ? '/tmp/li
 const DB_FILE = path.join(DB_DIR, 'life-kitchen-db.json')
 let petProcess = null
 const DEV_LOGIN_CODE = '123456'
+const INVITE_THEMES = {
+  mint: ['MINT', 'LEAF', 'SOFT'],
+  lemon: ['LEMON', 'SUN', 'SPARK'],
+  rosemary: ['ROSE', 'FOCUS', 'TOWER'],
+  garlic: ['GARLIC', 'GUARD', 'GATE'],
+  ginger: ['GINGER', 'FIRE', 'WARM'],
+  cilantro: ['CILANTRO', 'BREEZE', 'GREEN'],
+  osmanthus: ['OSMANTHUS', 'GOLD', 'BLOOM'],
+  chili: ['CHILI', 'FLAME', 'BURST'],
+  zhongzhong: ['ZHONG', 'ZHUZHU', 'TAVERN'],
+}
 
 function loadLocalEnv() {
   for (const file of ['.env', '.env.local']) {
@@ -45,7 +56,16 @@ const emptyDb = () => ({
 async function readDb() {
   try {
     const raw = await readFile(DB_FILE, 'utf8')
-    return { ...emptyDb(), ...JSON.parse(raw) }
+    const base = emptyDb()
+    const saved = JSON.parse(raw)
+    return {
+      ...base,
+      ...saved,
+      users: { ...base.users, ...(saved.users || {}) },
+      verificationCodes: { ...base.verificationCodes, ...(saved.verificationCodes || {}) },
+      sessions: { ...base.sessions, ...(saved.sessions || {}) },
+      inviteCodes: { ...base.inviteCodes, ...(saved.inviteCodes || {}) },
+    }
   } catch {
     return emptyDb()
   }
@@ -67,6 +87,16 @@ function normalizePhone(phone = '') {
   return clean.slice(0, 20)
 }
 
+function validatePhone(phone = '') {
+  const normalized = normalizePhone(phone)
+  const digits = normalized.replace(/\D/g, '')
+  if (normalized.startsWith('+')) {
+    return digits.length >= 8 && digits.length <= 15
+  }
+  if (digits.length === 11 && /^1[3-9]\d{9}$/.test(digits)) return true
+  return digits.length >= 8 && digits.length <= 15
+}
+
 function hashCode(code = '') {
   return createHash('sha256').update(String(code)).digest('hex')
 }
@@ -84,6 +114,35 @@ function hasSmsProvider() {
 
 function devLoginCode() {
   return DEV_LOGIN_CODE
+}
+
+function randomInviteCode(theme = 'zhongzhong') {
+  const key = String(theme || 'zhongzhong').toLowerCase()
+  const words = INVITE_THEMES[key] || INVITE_THEMES.zhongzhong
+  const head = words[randomInt(0, words.length)]
+  const tail = randomInt(1000, 9999)
+  return `${head}${tail}`
+}
+
+function createInvite(db, input = {}) {
+  const theme = String(input.theme || input.bartenderId || 'zhongzhong').toLowerCase()
+  const maxUses = Math.max(1, Math.min(9999, Number(input.maxUses || 1)))
+  const label = String(input.label || '种种请柬').trim().slice(0, 32) || '种种请柬'
+  let code = String(input.code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 18)
+  for (let i = 0; !code || db.inviteCodes?.[code]; i += 1) {
+    code = randomInviteCode(theme)
+    if (i > 20) code = `${randomInviteCode(theme)}${randomInt(10, 99)}`
+  }
+  const invite = {
+    code,
+    label,
+    theme,
+    maxUses,
+    usedBy: [],
+    createdAt: new Date().toISOString(),
+  }
+  db.inviteCodes = { ...(db.inviteCodes || {}), [code]: invite }
+  return invite
 }
 
 function hmac(key, value, encoding) {
@@ -115,6 +174,14 @@ function sendJson(res, status, data) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
   res.end(JSON.stringify(data))
+}
+
+function canManageInvites(req) {
+  const adminKey = process.env.INVITE_ADMIN_KEY || ''
+  if (!adminKey && !process.env.VERCEL) return true
+  const headerKey = req.headers['x-admin-key'] || ''
+  const authKey = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '')
+  return Boolean(adminKey && (headerKey === adminKey || authKey === adminKey))
 }
 
 async function readBody(req) {
@@ -184,7 +251,8 @@ async function sendSmsCode(phone, code) {
       template: process.env.SMS_TEMPLATE || 'life-kitchen-login',
     }),
   })
-  return { mode: 'sms-provider', ok: upstream.ok, status: upstream.status }
+  const data = await upstream.json().catch(async () => ({ message: await upstream.text().catch(() => '') }))
+  return { mode: 'sms-provider', ok: upstream.ok, status: upstream.status, data }
 }
 
 async function sendTencentSmsCode(phone, code) {
@@ -497,11 +565,47 @@ export async function handleApiRequest(req, res) {
       return true
     }
 
+    if (req.method === 'GET' && url.pathname === '/api/invites') {
+      if (!canManageInvites(req)) {
+        sendJson(res, 401, { error: 'unauthorized', message: '需要掌柜密钥。' })
+        return true
+      }
+      const db = await readDb()
+      const invites = Object.values(db.inviteCodes || {}).map((invite) => ({
+        code: invite.code,
+        label: invite.label,
+        theme: invite.theme || 'zhongzhong',
+        maxUses: invite.maxUses || 1,
+        used: (invite.usedBy || []).length,
+        createdAt: invite.createdAt || '',
+      }))
+      sendJson(res, 200, { invites })
+      return true
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/invites/generate') {
+      if (!canManageInvites(req)) {
+        sendJson(res, 401, { error: 'unauthorized', message: '需要掌柜密钥。' })
+        return true
+      }
+      const body = await readBody(req)
+      const count = Math.max(1, Math.min(50, Number(body.count || 1)))
+      const db = await readDb()
+      const invites = []
+      for (let i = 0; i < count; i += 1) {
+        invites.push(createInvite(db, body))
+      }
+      await writeDb(db)
+      sendJson(res, 200, { ok: true, invites })
+      return true
+    }
+
     if (req.method === 'POST' && url.pathname === '/api/auth/send-code') {
       const body = await readBody(req)
       const phone = normalizePhone(body.phone)
-      const inviteCheck = await readDb().then((db) => ensureInvite(db, body.inviteCode))
-      if (!phone || phone.replace(/\D/g, '').length < 8) {
+      const db = await readDb()
+      const inviteCheck = ensureInvite(db, body.inviteCode)
+      if (!validatePhone(phone)) {
         sendJson(res, 400, { error: 'phone_invalid', message: '手机号不太对。' })
         return true
       }
@@ -509,8 +613,8 @@ export async function handleApiRequest(req, res) {
         sendJson(res, 403, { error: inviteCheck.error, message: '邀请码不对，先找酒馆掌柜要一张。' })
         return true
       }
-      const db = await readDb()
-      const code = hasSmsProvider() ? String(randomInt(100000, 999999)) : devLoginCode(phone)
+      const usingSmsProvider = hasSmsProvider()
+      const code = usingSmsProvider ? String(randomInt(100000, 999999)) : devLoginCode(phone)
       db.verificationCodes[phone] = {
         phone,
         codeHash: hashCode(code),
@@ -532,6 +636,7 @@ export async function handleApiRequest(req, res) {
         ok: true,
         expiresIn: 300,
         devCode: sms.mode === 'dev-console' ? code : undefined,
+        provider: sms.mode,
         message: sms.mode === 'dev-console' ? '开发环境验证码已显示。' : '验证码已发送。',
       })
       return true
@@ -544,6 +649,10 @@ export async function handleApiRequest(req, res) {
       const db = await readDb()
       const inviteCheck = ensureInvite(db, body.inviteCode)
       const savedCode = db.verificationCodes[phone]
+      if (!validatePhone(phone)) {
+        sendJson(res, 400, { error: 'phone_invalid', message: '手机号不太对。' })
+        return true
+      }
       if (!inviteCheck.ok) {
         sendJson(res, 403, { error: inviteCheck.error, message: '邀请码不对。' })
         return true

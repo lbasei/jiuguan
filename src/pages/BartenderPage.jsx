@@ -80,6 +80,7 @@ export default function BartenderPage() {
   const [summoning, setSummoning] = useState(false)
   const [summonBartender, setSummonBartender] = useState(null)
   const [armedId, setArmedId] = useState(null)
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const [customOpen, setCustomOpen] = useState(false)
   const [customForm, setCustomForm] = useState({
     name: '星糖种种',
@@ -97,10 +98,12 @@ export default function BartenderPage() {
   const dragX = useRef(null)
   const summonTimer = useRef(null)
   const arrowTimer = useRef(null)
+  const tapTimer = useRef(null)
 
   const go = (dir) => {
     setArmedId(null)
     setCustomOpen(false)
+    setDetailsOpen(false)
     setArrowFlash(dir < 0 ? 'left' : 'right')
     clearTimeout(arrowTimer.current)
     arrowTimer.current = setTimeout(() => setArrowFlash(''), 220)
@@ -114,6 +117,7 @@ export default function BartenderPage() {
     return () => {
       clearTimeout(summonTimer.current)
       clearTimeout(arrowTimer.current)
+      clearTimeout(tapTimer.current)
     }
   }, [])
 
@@ -221,14 +225,14 @@ export default function BartenderPage() {
     }
     if (!canSummon) return
     if (event?.detail > 1) {
-      setArmedId(cur.id)
+      clearTimeout(tapTimer.current)
+      setDetailsOpen(true)
       return
     }
-    if (armedId === cur.id) {
+    clearTimeout(tapTimer.current)
+    tapTimer.current = setTimeout(() => {
       summon()
-      return
-    }
-    setArmedId(cur.id)
+    }, 280)
   }
 
   const updateCustom = (key, value) => {
@@ -328,10 +332,9 @@ export default function BartenderPage() {
             </span>}
           </div>
           <div className="hero-name">{cur.name}</div>
-          <div className="hero-info">
-            <div className="hero-style">{cur.style}</div>
-            <div className="hero-fit">{cur.fit}</div>
-            <div className="hero-blurb">{cur.blurb}</div>
+          <div className="hero-tags" aria-label={`${cur.name} 的基础标签`}>
+            <span>{BADGE_LABELS[cur.id] || cur.style || '今日调酒师'}</span>
+            <span>{cur.style || cur.fit}</span>
           </div>
         </div>
 
@@ -339,6 +342,32 @@ export default function BartenderPage() {
           <span className="pixel-arrow right" aria-hidden="true" />
         </button>
       </div>
+
+      {detailsOpen && (
+        <div className="sprite-detail-scrim" role="dialog" aria-modal="true" aria-label={`${cur.name}介绍`} onClick={() => setDetailsOpen(false)}>
+          <section className="sprite-detail-sheet" onClick={(event) => event.stopPropagation()}>
+            <button className="sprite-detail-close" type="button" aria-label="收起介绍" onClick={() => setDetailsOpen(false)}>
+              ×
+            </button>
+            <div className="sprite-detail-image">
+              {cur.image ? (
+                <img src={cur.image} alt={cur.name} />
+              ) : (
+                <PixelSprite sprite={CREATURE} scale={7} colors={{ b: BODY[cur.id] || '#7FBFA6' }} />
+              )}
+            </div>
+            <div className="sprite-detail-copy">
+              <span>{BADGE_LABELS[cur.id] || '今日调酒师'}</span>
+              <h3>{cur.name}</h3>
+              <p>{cur.fit}</p>
+              <p>{cur.blurb}</p>
+            </div>
+            <button className="btn-primary sprite-detail-action" type="button" onClick={summon}>
+              邀请它
+            </button>
+          </section>
+        </div>
+      )}
 
       {customOpen && (
         <div className="custom-pet-panel" role="region" aria-label="自定义种种">
@@ -440,6 +469,7 @@ export default function BartenderPage() {
             onClick={() => {
               if (summoning) return
               setArmedId(null)
+              setDetailsOpen(false)
               setIdx(i)
             }}
             style={{ background: i === idx ? accentFor(b) : undefined }}
