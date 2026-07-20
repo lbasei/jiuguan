@@ -13,8 +13,9 @@ function GuideForm() {
   const source = searchParams.get("source")?.trim() || "booth";
   const campaign = searchParams.get("campaign")?.trim() || DEFAULT_CAMPAIGN;
   const returnTo = safeExternalUrl(searchParams.get("return_to"));
+  const draft = searchParams.get("draft")?.trim().slice(0, 120) || "";
   const [identity, setIdentity] = useState("创作者");
-  const [task, setTask] = useState("");
+  const [task, setTask] = useState(draft);
   const [blocker, setBlocker] = useState("");
   const [wechat, setWechat] = useState("");
   const [joinBeta, setJoinBeta] = useState(true);
