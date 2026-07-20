@@ -1,0 +1,9 @@
+{
+  "appId": "app.lifekitchen.zhongzhong",
+  "appName": "Life Kitchen",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "ios": {
+    "contentInset": "automatic"
+  }
+}

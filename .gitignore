@@ -1,0 +1,18 @@
+# Dependencies and build output
+**/node_modules/
+**/.next/
+**/dist/
+**/coverage/
+
+# Secrets and local runtime data
+**/.env
+**/.env.local
+**/.env.*.local
+**/.data/
+**/supabase/.temp/
+
+# Tooling and OS files
+**/*.tsbuildinfo
+**/*.log
+**/.DS_Store
+**/.vercel/

@@ -1,0 +1,13 @@
+{
+  "name": "life-kitchen-pet",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Life Kitchen 桌宠：小精灵分身，Mac 桌面端",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^33.2.1"
+  }
+}

@@ -1,0 +1,42 @@
+.adventure-journey {
+  display: grid;
+  gap: 9px;
+  width: min(420px, 92vw);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  z-index: 2;
+}
+
+.adventure-journey li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 11px 13px;
+  border-left: 3px solid rgba(36, 91, 114, 0.5);
+  background: rgba(255, 253, 244, 0.72);
+}
+
+.adventure-journey li > span {
+  color: #245b72;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.adventure-journey p {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+}
+
+.adventure-journey strong {
+  color: #245b72;
+  font-size: 14px;
+}
+
+.adventure-journey small {
+  color: rgba(36, 91, 114, 0.75);
+  font-size: 12px;
+  line-height: 1.5;
+}

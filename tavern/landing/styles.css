@@ -1,0 +1,508 @@
+/* ============================================================================
+ * Life Kitchen · Landing 样式
+ * 设计 token / 像素质感 / 字体 全部对齐游戏本体（../src/styles/theme.css）：
+ * 青绿魔法酒馆配色、硬投影 4px 4px 0、3px 描边、按下"陷进去"、花体标题。
+ * 这是独立文件，不引用也不改动游戏样式。
+ * ========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&family=Cinzel+Decorative:wght@700&family=ZCOOL+XiaoWei&display=swap');
+
+:root {
+  --cream: #EAF9F7;
+  --cream-2: #BFE9E4;
+  --wood: #2F8C92;
+  --wood-dark: #245B72;
+  --amber: #8FE4DF;
+  --amber-deep: #2F8C92;
+  --gold: #F4D66C;
+  --ink: #23445C;
+  --muted: #638397;
+  --leaf: #6AC8A7;
+  --card: #F7FFFC;
+  --red: #D45D8C;
+  --violet: #7E8BE6;
+  --pixel-shadow: 4px 4px 0 #23445C;
+  --pixel-shadow-sm: 3px 3px 0 #23445C;
+  --body: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --ornate: 'Cinzel Decorative', 'ZCOOL XiaoWei', 'Songti SC', serif;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+img, svg { image-rendering: pixelated; }
+
+body {
+  margin: 0;
+  font-family: var(--body);
+  color: var(--ink);
+  background-color: #EAF8F8;
+  background-image:
+    radial-gradient(820px 420px at 50% -14%, rgba(255,255,255,.72), transparent 72%),
+    linear-gradient(90deg, rgba(255,255,255,.22) 0 1px, transparent 1px),
+    linear-gradient(180deg, rgba(36,68,92,.035) 0 1px, transparent 1px),
+    url('../assets/textures/pale-damask-wallpaper.svg'),
+    linear-gradient(180deg, #F8FCFA 0%, #EAF8F8 54%, #DCEFEF 100%);
+  background-size: auto, 5px 100%, 100% 6px, 420px 560px, auto;
+  -webkit-font-smoothing: none;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* ——————————————————— 顶部导航 ——————————————————— */
+.nav {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 18px;
+  background: rgba(36, 91, 114, .94);
+  color: var(--cream);
+  border-bottom: 3px solid var(--ink);
+  box-shadow: 0 4px 0 rgba(35,68,92,.45);
+  backdrop-filter: blur(2px);
+}
+.nav-brand {
+  display: flex; align-items: baseline; gap: 8px;
+  font-family: var(--ornate); font-size: 19px; letter-spacing: .5px;
+  color: #F1F0FF; text-shadow: 0 0 10px rgba(190,199,255,.55), 2px 2px 0 rgba(35,68,92,.5);
+  flex-shrink: 0;
+}
+.nav-brand small { font-family: var(--body); font-size: 11px; color: var(--cream-2); }
+.nav-links { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }
+.nav-links a {
+  font-size: 14px; padding: 6px 12px; color: var(--cream-2);
+  border: 2px solid transparent; border-radius: 2px;
+  transition: color .12s, border-color .12s, background .12s;
+}
+.nav-links a:hover { color: #fff; background: rgba(143,228,223,.16); }
+.nav-links a.active { color: #173B52; background: var(--amber); border-color: var(--cream); }
+.nav-enter {
+  flex-shrink: 0;
+  font-family: var(--body); font-size: 14px; font-weight: 700;
+  padding: 8px 16px; color: #173B52; background: var(--gold);
+  border: 3px solid var(--ink); box-shadow: var(--pixel-shadow-sm);
+  transition: transform .05s, box-shadow .05s;
+}
+.nav-enter:hover { filter: brightness(1.05); }
+.nav-enter:active { transform: translate(3px,3px); box-shadow: none; }
+.nav-toggle { display: none; }
+
+/* ——————————————————— 酒馆入口 Hero ——————————————————— */
+.hero {
+  position: relative; isolation: isolate;
+  min-height: calc(100vh - 54px);
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  text-align: center; padding: 16px 20px 16px; overflow: hidden;
+  /* 自身背景透明：露出整页共用的提花壁纸，首屏→各区块底纹连续，无接缝 */
+  background: transparent;
+}
+/* 主区在中段居中、底排（小精灵+下滑提示）贴底，整屏刚好框住 */
+.hero-main {
+  flex: 1 1 auto; width: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+}
+.hero-foot { flex-shrink: 0; width: 100%; display: flex; flex-direction: column; align-items: center; }
+/* 首屏只用整页共用的浅色提花壁纸（hero 自身透明，露出 body 底纹）+ 一层柔光焦点。
+   不再叠那张酒馆内景 SVG —— 它的拱顶/四角偏灰，宽屏会大面积露出显脏。
+   这样首屏干净、与下面各区块底纹完全一致、天然无接缝。 */
+.hero::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(640px 400px at 50% 40%, rgba(255,255,255,.62), transparent 70%),
+    radial-gradient(1100px 580px at 50% 4%, rgba(191,233,228,.32), transparent 72%);
+}
+.hero-kicker {
+  position: relative; z-index: 1; color: #53768B; font-size: 13px; letter-spacing: 2px;
+  margin-bottom: 0; text-shadow: 0 1px 0 rgba(255,255,255,.7);
+}
+
+/* —— logo（复刻游戏入口：法师帽 + 翅膀 + 星 + 发光标题）—— */
+.logo {
+  position: relative; z-index: 1;
+  width: min(400px, 74vw); aspect-ratio: 1.32;
+  display: grid; place-items: center; margin: 0 auto;
+  filter: drop-shadow(0 18px 30px rgba(35,68,92,.16));
+}
+.logo-title {
+  position: relative; z-index: 3; margin: 0;
+  font-family: Georgia, 'ZCOOL XiaoWei', 'Songti SC', serif; font-style: italic;
+  color: #F1F0FF; font-size: clamp(46px, 11.5vw, 82px); line-height: .82; letter-spacing: .01em;
+  text-shadow: 0 0 4px #fff, 0 0 10px rgba(190,199,255,.92),
+    0 0 24px rgba(132,145,236,.72), 3px 3px 0 rgba(67,55,118,.52);
+}
+.logo-title span { display: block; }
+.logo-star {
+  position: absolute; z-index: 4; width: 32px; height: 32px; background: #F3E8FF;
+  clip-path: polygon(50% 0, 64% 34%, 100% 50%, 64% 66%, 50% 100%, 36% 66%, 0 50%, 36% 34%);
+  filter: drop-shadow(0 0 10px rgba(255,255,255,.9)) drop-shadow(3px 3px 0 rgba(84,51,149,.72));
+  animation: starTwinkle 2.4s ease-in-out infinite;
+}
+.logo-star.s1 { left: 12%; top: 26%; transform: rotate(-12deg); }
+.logo-star.s2 { right: 14%; top: 22%; width: 40px; height: 40px; transform: rotate(18deg); animation-delay: .5s; }
+.logo-star.s3 { right: 23%; bottom: 8%; width: 46px; height: 46px; transform: rotate(-8deg); animation-delay: 1s; }
+.logo-wing {
+  position: absolute; z-index: 2; width: 126px; height: 54px; background: #DDE4FF;
+  border: 4px solid rgba(86,78,148,.62); box-shadow: 0 0 14px rgba(178,190,255,.56);
+  clip-path: polygon(0 36%, 58% 0, 100% 15%, 72% 50%, 100% 86%, 55% 74%);
+}
+.logo-wing.left  { left: 4%;  bottom: 20%; transform: rotate(-16deg) scaleX(-1); }
+.logo-wing.right { right: 4%; bottom: 17%; transform: rotate(14deg); }
+.logo-hat { position: absolute; z-index: 5; left: 17%; top: -3%; width: 110px; height: 76px; transform: rotate(-14deg); }
+.logo-hat::before, .logo-hat::after {
+  content: ''; position: absolute; background: #3A1E54;
+  border: 4px solid rgba(86,78,148,.72); box-shadow: 0 0 12px rgba(178,190,255,.32);
+}
+.logo-hat::before { left: 30px; top: 0; width: 54px; height: 62px; clip-path: polygon(20% 100%, 50% 0, 84% 100%); }
+.logo-hat::after  { left: 0; bottom: 0; width: 106px; height: 24px; border-radius: 50%; }
+@keyframes starTwinkle { 0%,100% { opacity: .7; transform: scale(.92) rotate(var(--r,0)); } 50% { opacity: 1; transform: scale(1.08); } }
+
+.hero-copy {
+  position: relative; z-index: 1; max-width: 600px; margin: 0 auto;
+  color: #31556B; font-size: 16px; line-height: 1.72;
+  text-shadow: 0 1px 0 rgba(255,255,255,.72);
+}
+
+/* —— 进店主按钮（复刻 start-spell 法咒）—— */
+.enter-spell {
+  position: relative; z-index: 2; cursor: pointer;
+  border: 3px solid rgba(207,216,255,.8); border-radius: 999px;
+  background: rgba(52,77,105,.2);
+  box-shadow: 0 0 0 5px rgba(255,255,255,.22), 0 0 18px rgba(187,199,255,.62), inset 0 0 18px rgba(255,255,255,.28);
+  font-family: var(--ornate); font-size: clamp(22px, 4.4vw, 31px); color: #F7F4FF;
+  padding: 10px 36px 12px;
+  text-shadow: 0 0 5px rgba(255,255,255,.9), 0 0 14px rgba(180,190,255,.82), 2px 2px 0 rgba(62,69,123,.48);
+  transition: transform .16s, box-shadow .16s, border-color .16s;
+}
+.enter-spell::before {
+  content: ''; position: absolute; inset: -18px -32px; z-index: -1; opacity: .68;
+  background: radial-gradient(ellipse at center, rgba(194,252,244,.42), transparent 70%),
+    radial-gradient(ellipse at center, rgba(249,226,151,.2), transparent 52%);
+  transform: scaleX(.86); transition: opacity .18s, transform .18s;
+}
+.enter-spell::after { content: '✦'; position: absolute; right: 11px; top: -9px; color: #F7E5A6; font-size: 13px;
+  text-shadow: 0 0 9px rgba(255,244,191,.9), 2px 2px 0 rgba(62,69,123,.38); }
+.enter-spell:hover, .enter-spell:focus-visible {
+  transform: scale(1.045); outline: none; border-color: rgba(247,230,166,.92);
+  box-shadow: 0 0 0 6px rgba(255,255,255,.26), 0 0 24px rgba(187,199,255,.78), 0 0 18px rgba(247,230,166,.34), inset 0 0 20px rgba(255,255,255,.35);
+}
+.enter-spell:hover::before, .enter-spell:focus-visible::before { opacity: 1; transform: scaleX(1); }
+.enter-spell:active { transform: translateY(2px) scale(1.02); }
+.hero-sub-enter { position: relative; z-index: 1; margin-top: 0; font-size: 13px; color: #5B7E92; }
+
+/* —— hero 底部：吧台 + 一排小精灵探头 —— */
+.hero-bar {
+  position: relative; z-index: 1; margin-top: 0; width: min(680px, 95vw);
+  display: flex; justify-content: center; align-items: flex-end; gap: clamp(6px, 2.4vw, 22px);
+  padding-bottom: 6px;
+}
+/* 贴底地面线：落在精灵脚下，不再横穿身体 */
+.hero-bar::after {
+  content: ''; position: absolute; left: -5%; right: -5%; bottom: 0; height: 0;
+  border-top: 4px solid rgba(35,68,92,.36);
+  box-shadow: 0 7px 0 rgba(35,68,92,.08);
+}
+.hero-bar img {
+  width: clamp(54px, 10.5vw, 82px); height: auto; object-fit: contain;
+  filter: drop-shadow(0 5px 0 rgba(35,68,92,.18));
+  animation: bob 3.2s ease-in-out infinite;
+}
+.hero-bar img:nth-child(2n) { animation-delay: .4s; }
+.hero-bar img:nth-child(3n) { animation-delay: .8s; }
+@keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.hero-scroll {
+  position: relative; z-index: 1; margin-top: 8px; color: #5B7E92; font-size: 13px;
+  display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.hero-scroll span { animation: bob 1.8s ease-in-out infinite; font-size: 18px; }
+
+/* ——————————————————— 内容区块通用 ——————————————————— */
+.section { max-width: 1040px; margin: 0 auto; padding: 84px 20px 20px; scroll-margin-top: 70px; }
+/* 区块分隔：顶部一道淡星纹，把各区块清晰拉开 */
+.section::before {
+  content: '✦ · ✦';
+  display: block; text-align: center; letter-spacing: 8px;
+  color: rgba(47,140,146,.4); font-size: 14px; line-height: 1;
+  margin: 0 auto 44px;
+}
+.section-head { text-align: center; margin-bottom: 32px; }
+.section-eyebrow { color: var(--amber-deep); font-size: 13px; letter-spacing: 2px; margin-bottom: 6px; }
+.section-title {
+  font-family: var(--ornate); font-size: clamp(26px, 5vw, 36px); color: var(--wood-dark);
+  margin: 0 0 10px; text-shadow: 1px 1px 0 rgba(255,255,255,.6);
+}
+.section-desc { color: var(--muted); font-size: 15px; max-width: 600px; margin: 0 auto; line-height: 1.8; }
+
+.grid { display: grid; gap: 18px; }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.grid-4 { grid-template-columns: repeat(4, 1fr); gap: 24px; }
+
+.card {
+  background: var(--card); border: 3px solid var(--ink); box-shadow: var(--pixel-shadow);
+  padding: 16px; transition: transform .08s, box-shadow .08s;
+}
+.card.lift:hover { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 var(--ink); }
+
+/* —— 小精灵图鉴 —— */
+.sprite-card { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; }
+.sprite-stage {
+  width: 100%; aspect-ratio: 1; background: #F1FFFC; border: 2px solid var(--ink);
+  display: grid; place-items: center; padding: 10px; margin-bottom: 4px;
+  background-image: radial-gradient(circle at 50% 120%, rgba(143,228,223,.35), transparent 60%);
+}
+.sprite-stage img { width: 88%; height: 88%; object-fit: contain; image-rendering: pixelated;
+  filter: drop-shadow(0 6px 0 rgba(35,68,92,.12)); animation: bob 3.4s ease-in-out infinite; }
+.sprite-name { font-weight: 800; font-size: 17px; color: var(--wood-dark); }
+.sprite-style { display: inline-block; font-size: 12px; color: #173B52; background: var(--amber);
+  border: 2px solid var(--ink); padding: 2px 8px; }
+.sprite-blurb { font-size: 13px; color: var(--ink); line-height: 1.6; }
+.sprite-fit { font-size: 12px; color: var(--muted); line-height: 1.55; }
+.sprite-meta { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 2px; }
+.chip { font-size: 11px; padding: 3px 8px; border: 2px solid var(--ink); background: #EAF9F7; color: var(--wood-dark); }
+.chip.strat { background: #FFF8DA; border-color: #E5B020; }
+
+/* —— 原料图鉴 —— */
+.ingredient-card { display: grid; grid-template-columns: 56px 1fr; gap: 14px; align-items: center; }
+.vial {
+  width: 48px; height: 64px; border: 3px solid var(--ink); position: relative; overflow: hidden;
+  background: #F8FFFD; border-radius: 4px 4px 8px 8px; justify-self: center;
+}
+.vial::before { content: ''; position: absolute; top: -7px; left: 50%; transform: translateX(-50%);
+  width: 22px; height: 9px; background: #D7B37A; border: 2px solid var(--ink); border-radius: 2px; }
+.vial .fill { position: absolute; left: 0; right: 0; bottom: 0; height: 64%;
+  box-shadow: inset 0 4px 0 rgba(255,255,255,.4); }
+.vial .bubble { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.7);
+  left: 9px; bottom: 14px; box-shadow: 12px 8px 0 rgba(255,255,255,.5); }
+.ingredient-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ingredient-name { font-weight: 800; font-size: 17px; color: var(--wood-dark); }
+.ingredient-emoji { font-size: 20px; }
+.ingredient-method { font-size: 11px; padding: 2px 7px; border: 2px solid var(--ink); background: #FFF8DA; color: #8a6a1a; }
+.ingredient-desc { font-size: 13px; color: var(--ink); margin: 4px 0 2px; }
+.ingredient-taste { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+/* —— 调配流程 —— */
+.flow { display: flex; flex-direction: column; gap: 14px; max-width: 760px; margin: 0 auto; }
+.flow-step { display: grid; grid-template-columns: 56px 1fr; gap: 16px; align-items: flex-start; }
+.flow-num {
+  width: 52px; height: 52px; display: grid; place-items: center; flex-shrink: 0;
+  font-family: var(--display); font-weight: 800; font-size: 22px;
+  background: var(--amber); color: #173B52; border: 3px solid var(--ink); box-shadow: var(--pixel-shadow-sm);
+}
+.flow-body h4 { margin: 4px 0 4px; font-size: 17px; color: var(--wood-dark); }
+.flow-body h4 small { font-family: var(--body); font-weight: 400; font-size: 13px; color: var(--amber-deep); margin-left: 8px; }
+.flow-body p { margin: 0; font-size: 14px; color: var(--ink); line-height: 1.7; }
+
+.methods { margin-top: 30px; }
+.method-pill { display: flex; align-items: baseline; gap: 8px; padding: 11px 14px;
+  background: #FFFDF4; border: 3px solid var(--ink); box-shadow: var(--pixel-shadow-sm); }
+.method-name { font-weight: 800; color: var(--wood-dark); font-size: 16px; white-space: nowrap; }
+.method-for { font-size: 12px; color: var(--amber-deep); white-space: nowrap; }
+.method-desc { font-size: 13px; color: var(--muted); }
+
+/* —— 酒柜 —— */
+.cabinet-card { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; position: relative; }
+.cabinet-card.locked { filter: grayscale(.5); }
+.glass { position: relative; width: 78px; height: 120px; margin: 4px 0; }
+.glass-cup {
+  position: absolute; inset: 0;
+  clip-path: polygon(16% 0, 84% 0, 70% 78%, 60% 92%, 60% 100%, 40% 100%, 40% 92%, 30% 78%);
+  background: #F8FFFD; border: 0; overflow: hidden;
+  box-shadow: inset 0 0 0 3px rgba(35,68,92,.85);
+}
+.glass-liquid { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column-reverse; }
+.glass-layer { flex: 1; min-height: 14px; box-shadow: inset 0 4px 0 rgba(255,255,255,.32), inset 0 -2px 0 rgba(35,68,92,.08); }
+.glass-shine { position: absolute; left: 22%; top: 6%; width: 7px; height: 46%; background: rgba(255,255,255,.6); transform: rotate(6deg); z-index: 2; }
+.lock-badge {
+  position: absolute; top: 6px; right: 6px; z-index: 3; font-size: 11px;
+  background: rgba(35,68,92,.88); color: #EAF9F7; padding: 3px 8px; border: 2px solid var(--ink);
+}
+.cabinet-name { font-weight: 800; font-size: 17px; color: var(--wood-dark); }
+.rarity { font-size: 11px; padding: 2px 9px; border: 2px solid var(--ink); color: #fff; }
+.cabinet-recipe { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.recipe-dot { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ink);
+  background: #EAF9F7; border: 2px solid var(--ink); padding: 2px 7px; }
+.recipe-dot i { width: 9px; height: 9px; border: 1px solid var(--ink); display: inline-block; }
+.cabinet-flavor { font-size: 13px; color: var(--ink); line-height: 1.6; }
+.cabinet-unlock { font-size: 12px; color: var(--muted); line-height: 1.55; border-top: 2px dashed rgba(35,68,92,.2); padding-top: 8px; margin-top: 2px; width: 100%; }
+.cabinet-unlock b { color: var(--amber-deep); font-weight: 700; }
+
+/* —— 秘方墙 —— */
+.recipe-wall { columns: 3; column-gap: 16px; }
+.wall-card { break-inside: avoid; margin-bottom: 16px; display: block; }
+.wall-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.wall-author { font-size: 12px; color: var(--muted); }
+.wall-kind { font-size: 10px; padding: 2px 7px; border: 2px solid var(--ink); white-space: nowrap; }
+.wall-kind.bartender { background: var(--amber); color: #173B52; }
+.wall-kind.evomap { background: #EBE4FF; color: #4b3f86; border-color: #4b3f86; }
+.wall-kind.player { background: #FFE8F1; color: #9c3a64; border-color: #9c3a64; }
+.wall-title { font-weight: 800; font-size: 16px; color: var(--wood-dark); margin: 0 0 6px; }
+.wall-body { font-size: 13px; color: var(--ink); line-height: 1.65; margin: 0 0 10px; }
+.wall-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.wall-conf { font-size: 11px; color: var(--amber-deep); }
+.wall-share {
+  margin-top: 8px; text-align: center; padding: 22px;
+  border: 3px dashed rgba(35,68,92,.32); background: rgba(247,255,252,.6); color: var(--muted);
+}
+.wall-share b { color: var(--wood-dark); }
+
+/* ——————————————————— 页脚 ——————————————————— */
+.footer { max-width: 980px; margin: 56px auto 0; padding: 32px 20px 48px; text-align: center;
+  border-top: 3px solid rgba(35,68,92,.2); color: var(--muted); font-size: 13px; }
+.footer .enter-spell { font-size: clamp(22px, 5vw, 32px); margin-bottom: 18px; }
+.footer-meta { margin-top: 18px; line-height: 1.8; }
+
+/* ——————————————————— 响应式 ——————————————————— */
+@media (max-width: 900px) {
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(2, 1fr); }
+  .recipe-wall { columns: 2; }
+}
+@media (max-width: 620px) {
+  .nav-links { display: none; position: absolute; top: 100%; left: 0; right: 0;
+    flex-direction: column; gap: 0; background: rgba(36,91,114,.98); border-bottom: 3px solid var(--ink); padding: 6px; }
+  .nav-links.open { display: flex; }
+  .nav-links a { padding: 12px; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .nav-toggle { display: inline-flex; align-items: center; justify-content: center;
+    width: 40px; height: 38px; background: var(--amber); color: #173B52; border: 3px solid var(--ink);
+    box-shadow: var(--pixel-shadow-sm); font-size: 18px; cursor: pointer; }
+  .nav-spacer { flex: 1; }
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .recipe-wall { columns: 1; }
+  .section { padding-top: 48px; }
+}
+
+/* ============================================================================
+ * Typography v2 · 像素锐化 pass
+ * 标题/标签从细瘦楷体换成真·中文像素字 Zpix（最像素），一套覆盖中英数字。
+ * hero 发光 logo 与「推门进店」法咒保留花体当招牌，不动。
+ * 关键：Zpix 是单一字重点阵字，任何 bold 都会被合成成糊边，所以像素文字一律 400。
+ * ========================================================================== */
+/* 自托管，不依赖 CDN。Zpix = 子集（33KB，秒开，覆盖本页全部文字）；
+   ZpixFull = 完整字库（889KB），只在出现子集没有的字时才被浏览器懒加载。 */
+@font-face {
+  font-family: 'Zpix';
+  src: url('fonts/Zpix.subset.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ZpixFull';
+  src: url('fonts/Zpix.full.woff2') format('woff2');
+  font-display: swap;
+}
+:root {
+  --pixel: 'Zpix', 'ZpixFull', 'DotGothic16', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+}
+
+body { font-size: 17px; }
+
+/* —— 区块标题：换像素字、字号放大、加硬投影提锐度 —— */
+.section-title {
+  font-family: var(--pixel); font-weight: 400;
+  font-size: clamp(32px, 6vw, 46px); letter-spacing: 1px;
+  text-shadow: 2px 2px 0 rgba(35,68,92,.16);
+}
+.section-eyebrow { font-family: var(--pixel); font-size: 13px; letter-spacing: 2px; }
+.section-desc { font-size: 16px; }
+
+/* —— 导航：像素字 —— */
+.nav-brand { font-family: var(--pixel); font-weight: 400; font-size: 18px; letter-spacing: .5px; }
+.nav-brand small { font-family: var(--pixel); font-size: 11px; }
+.nav-links a { font-family: var(--pixel); font-size: 15px; }
+.nav-enter { font-family: var(--pixel); font-weight: 400; font-size: 14px; }
+
+/* —— hero 标记文案 —— */
+.hero-kicker { font-family: var(--pixel); font-size: 14px; letter-spacing: 3px; }
+.hero-sub-enter, .hero-scroll { font-family: var(--pixel); }
+.hero-copy { font-size: 16px; }
+
+/* —— 卡片标题：像素字 + 400 字重（防合成粗体糊掉）+ 放大 —— */
+.sprite-name, .ingredient-name, .cabinet-name, .method-name, .wall-title, .flow-body h4 {
+  font-family: var(--pixel); font-weight: 400; letter-spacing: .5px;
+}
+.sprite-name    { font-size: 22px; }
+.ingredient-name{ font-size: 22px; }
+.cabinet-name   { font-size: 20px; }
+.method-name    { font-size: 19px; }
+.wall-title     { font-size: 19px; }
+.flow-body h4   { font-size: 22px; }
+.flow-body h4 small { font-family: var(--body); }
+.flow-num { font-family: var(--pixel); font-weight: 400; font-size: 24px; }
+
+/* —— 小标签 / 胶囊 / 徽标：像素字最对味 —— */
+.chip, .sprite-style, .ingredient-method, .method-for, .rarity,
+.wall-kind, .lock-badge, .recipe-dot, .wall-author, .wall-conf {
+  font-family: var(--pixel);
+}
+.sprite-style { font-size: 13px; }
+.ingredient-method { font-size: 12px; }
+
+/* —— 正文略放大，提升可读与"分量" —— */
+.sprite-blurb, .ingredient-desc, .cabinet-flavor, .wall-body, .flow-body p { font-size: 14px; }
+.sprite-fit, .ingredient-taste, .cabinet-unlock, .method-desc { font-size: 13px; }
+
+/* ============================================================================
+ * 推门进店 · 转场动画
+ * 点击进店 → 双扇酒馆门向外推开、光涌出 → 白闪 → 跳转游戏。
+ * ========================================================================== */
+.door-transition {
+  position: fixed; inset: 0; z-index: 1000; display: none; overflow: hidden;
+}
+.door-transition.show { display: block; animation: doorEnter .18s ease both; }
+@keyframes doorEnter { from { opacity: 0; } to { opacity: 1; } }
+
+/* 门后：柔和的浅青光（不再金光爆闪），与游戏入口同色系 */
+.door-light {
+  position: absolute; inset: 0; z-index: 1; opacity: 0;
+  background: radial-gradient(64% 78% at 50% 46%, #FBFEFD 0 16%, #ECF7F5 52%, #D6ECEA 86%);
+}
+.door-transition.opening .door-light { animation: doorLight .8s ease forwards; }
+@keyframes doorLight { 0% { opacity: .5; } 100% { opacity: 1; } }
+
+/* 门扇舞台（透视，让门向外推开有纵深） */
+.door-scene { position: absolute; inset: 0; z-index: 2; perspective: 2400px; }
+.door-leaf {
+  position: absolute; top: 0; bottom: 0; width: 51%;
+  background-color: #34757a;
+  background-image:
+    repeating-linear-gradient(90deg, rgba(15,37,48,0) 0 40px, rgba(15,37,48,.18) 40px 42px),
+    linear-gradient(180deg, #459094, #2c666f);
+  border: 3px solid #1a3f4b;
+  box-shadow: inset 0 0 0 4px rgba(234,249,247,.06);
+  backface-visibility: hidden;
+}
+.door-leaf.left  { left: 0;  transform-origin: left center; border-right: 3px solid #0c2531; }
+.door-leaf.right { right: 0; transform-origin: right center; border-left: 3px solid #0c2531; }
+.door-panel {
+  position: absolute; inset: 16px; border: 3px solid rgba(12,37,49,.5);
+  box-shadow: inset 0 0 0 4px rgba(234,249,247,.06);
+}
+.door-window {
+  position: absolute; top: 20%; left: 50%; transform: translateX(-50%);
+  width: clamp(54px, 7vw, 84px); aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle, #F3FBF9 0 42%, #BFE9E4 70%, transparent 74%);
+  border: 4px solid #1a3f4b; box-shadow: inset 0 0 10px rgba(255,255,255,.4);
+}
+.door-knob {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #F4D66C; border: 3px solid #11303c;
+  box-shadow: 0 0 0 3px rgba(244,214,108,.22);
+}
+.door-leaf.left .door-knob  { right: 12px; }
+.door-leaf.right .door-knob { left: 12px; }
+/* 轻轻推开：角度小、缓出、更快 */
+.door-transition.opening .door-leaf.left  { animation: doorSwingL .6s cubic-bezier(.4,0,.2,1) .08s forwards; }
+.door-transition.opening .door-leaf.right { animation: doorSwingR .6s cubic-bezier(.4,0,.2,1) .08s forwards; }
+@keyframes doorSwingL { from { transform: rotateY(0); } to { transform: rotateY(92deg); } }
+@keyframes doorSwingR { from { transform: rotateY(0); } to { transform: rotateY(-92deg); } }
+
+/* 收尾：淡入到「游戏入口同款浅青」，而非白闪 → 跳转时屏幕已是游戏底色，中间不突兀 */
+.door-flash {
+  position: absolute; inset: 0; z-index: 3; opacity: 0;
+  background: radial-gradient(680px 420px at 50% 42%, #FBFEFD 0 8%, #EAF6F4 60%, #DCEFEF 100%);
+}
+.door-transition.opening .door-flash { animation: doorFlash .42s ease .42s forwards; }
+@keyframes doorFlash { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .door-transition { display: none !important; }
+}

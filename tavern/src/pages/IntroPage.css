@@ -1,0 +1,9 @@
+.intro-page > .intro-actions.intro-actions-stacked {
+  flex-direction: column;
+  gap: 5px;
+  width: min(280px, 84vw);
+}
+
+.intro-page > .intro-actions.intro-actions-stacked .start-spell {
+  width: 100%;
+}
