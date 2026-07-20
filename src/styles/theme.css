@@ -12069,3 +12069,73 @@ label.field { display: block; font-size: 16px; color: var(--muted); margin: 8px 
     font-size: clamp(17px, 5.8vw, 26px);
   }
 }
+
+/* Adventure 展会壳：极简，深链到 collection */
+.adventure-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 12vh 20px 8vh;
+  gap: 28px;
+  box-sizing: border-box;
+}
+.adventure-copy {
+  text-align: center;
+  max-width: 28rem;
+  z-index: 2;
+}
+.adventure-kicker {
+  margin: 0 0 8px;
+  letter-spacing: .28em;
+  text-transform: uppercase;
+  font-size: 12px;
+  color: rgba(36, 91, 114, .72);
+}
+.adventure-title {
+  margin: 0 0 10px;
+  font-size: clamp(22px, 5vw, 32px);
+  color: #245B72;
+}
+.adventure-lead {
+  margin: 0;
+  line-height: 1.55;
+  color: rgba(36, 91, 114, .88);
+  font-size: 14px;
+}
+.adventure-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(420px, 92vw);
+  z-index: 2;
+}
+.adventure-link {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid rgba(36, 91, 114, .28);
+  border-radius: 12px;
+  background: rgba(255, 253, 244, .94);
+  color: #245B72;
+  text-decoration: none;
+}
+.adventure-link strong {
+  font-size: 16px;
+}
+.adventure-link span {
+  font-size: 13px;
+  color: rgba(36, 91, 114, .72);
+}
+.adventure-link:hover,
+.adventure-link:focus-visible {
+  border-color: rgba(36, 91, 114, .55);
+  outline: none;
+}
+.adventure-page .adventure-back {
+  position: static;
+  transform: none;
+  width: auto;
+  margin-top: 8px;
+}

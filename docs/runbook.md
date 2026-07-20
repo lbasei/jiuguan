@@ -11,6 +11,9 @@
 | `VITE_LLM_API_KEY` | (空) | DeepSeek API key。**不填就走规则解析,demo 不崩。** |
 | `VITE_LLM_MODEL` | `deepseek-v4-flash` | 模型 ID。改成其他 OpenAI 兼容模型也行(如 `deepseek-chat`)。 |
 | `VITE_LLM_BASE_URL` | `/deepseek` | dev 默认走 Vite 代理绕 CORS。指向其他 OpenAI 兼容 endpoint 时覆盖。 |
+| `VITE_COLLECT_BASE_URL` | `http://localhost:3000` | Adventure 深链到 data-collection 的根地址；线上填 Production，换域名只改这里。 |
+| `VITE_TAVERN_BASE_URL` | (空) | 酒馆自己的线上根地址，可选，以后回流用。 |
+| `VITE_ADVENTURE_CAMPAIGN` | `adventurex-2026` | 写入 collect query 的 campaign。 |
 
 桌宠无环境变量。
 
