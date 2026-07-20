@@ -3,6 +3,42 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/_next/:path*",
+      "destination": "https://jiuguan-collect.vercel.app/_next/:path*"
+    },
+    {
+      "source": "/collect/:path*",
+      "destination": "https://jiuguan-collect.vercel.app/collect/:path*"
+    },
+    {
+      "source": "/share/:path*",
+      "destination": "https://jiuguan-collect.vercel.app/share/:path*"
+    },
+    {
+      "source": "/staff/:path*",
+      "destination": "https://jiuguan-collect.vercel.app/staff/:path*"
+    },
+    {
+      "source": "/auth/:path*",
+      "destination": "https://jiuguan-collect.vercel.app/auth/:path*"
+    },
+    {
+      "source": "/login",
+      "destination": "https://jiuguan-collect.vercel.app/login"
+    },
+    {
+      "source": "/signup",
+      "destination": "https://jiuguan-collect.vercel.app/signup"
+    },
+    {
+      "source": "/entry-test",
+      "destination": "https://jiuguan-collect.vercel.app/entry-test"
+    },
+    {
+      "source": "/upload-test",
+      "destination": "https://jiuguan-collect.vercel.app/upload-test"
+    },
+    {
       "source": "/api/:path*",
       "destination": "/api/index"
     }

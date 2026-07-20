@@ -116,6 +116,10 @@ function devLoginCode() {
   return DEV_LOGIN_CODE
 }
 
+function canUseDevLoginCode() {
+  return process.env.NODE_ENV !== 'production' && !process.env.VERCEL
+}
+
 function randomInviteCode(theme = 'zhongzhong') {
   const key = String(theme || 'zhongzhong').toLowerCase()
   const words = INVITE_THEMES[key] || INVITE_THEMES.zhongzhong
@@ -614,6 +618,13 @@ export async function handleApiRequest(req, res) {
         return true
       }
       const usingSmsProvider = hasSmsProvider()
+      if (!usingSmsProvider && !canUseDevLoginCode()) {
+        sendJson(res, 503, {
+          error: 'sms_not_configured',
+          message: '短信登录暂未开放，请先使用现场体验入口。',
+        })
+        return true
+      }
       const code = usingSmsProvider ? String(randomInt(100000, 999999)) : devLoginCode(phone)
       db.verificationCodes[phone] = {
         phone,
@@ -658,7 +669,7 @@ export async function handleApiRequest(req, res) {
         return true
       }
       if (!savedCode || savedCode.expiresAt < Date.now()) {
-        const canUseDevCode = !hasSmsProvider() && code === devLoginCode(phone)
+        const canUseDevCode = canUseDevLoginCode() && !hasSmsProvider() && code === devLoginCode(phone)
         if (!canUseDevCode) {
           sendJson(res, 400, { error: 'code_expired', message: '验证码过期了，再要一杯新的。' })
           return true
