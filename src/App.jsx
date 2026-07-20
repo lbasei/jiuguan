@@ -14,6 +14,8 @@ import RevealPage from './pages/RevealPage.jsx'
 import OpsPage from './pages/OpsPage.jsx'
 import { getRecipeVolumeLayers } from './engine/recipeVolume.js'
 import { loadUiSettings, saveUiSettings } from './engine/uiSettings.js'
+import { startBgm, stopBgm } from './engine/bgm.js'
+import { playUiSound, resolveButtonSfx } from './engine/sfx.js'
 
 function minutesFromRecord(item = {}) {
   const records = Array.isArray(item.records) ? item.records : []
@@ -62,8 +64,8 @@ const UI_TEXT = {
       ['怎么开始', '先把今天说给吧台听，确认配方后开计时。做完就打勾，顺序可以按真实节奏走。'],
     ],
     settingsTitle: '吧台偏好',
-    whiteNoise: '白噪音',
-    whiteNoiseHint: '吧台低声',
+    whiteNoise: '背景音乐',
+    whiteNoiseHint: '酒馆氛围',
     on: '开',
     off: '关',
     language: '语言',
@@ -102,8 +104,8 @@ const UI_TEXT = {
       ['怎麼開始', '先說今天，確認配方後再開始計時。完成事項時打勾，不用反覆重排。'],
     ],
     settingsTitle: '吧台偏好',
-    whiteNoise: '白噪音',
-    whiteNoiseHint: '吧台低聲',
+    whiteNoise: '背景音樂',
+    whiteNoiseHint: '酒館氛圍',
     on: '開',
     off: '關',
     language: '語言',
@@ -142,8 +144,8 @@ const UI_TEXT = {
       ['How to start', 'Tell today first, confirm the recipe, then start the timer. Check items off when they are done.'],
     ],
     settingsTitle: 'Bar Preferences',
-    whiteNoise: 'White Noise',
-    whiteNoiseHint: 'Low bar murmur',
+    whiteNoise: 'Background Music',
+    whiteNoiseHint: 'Tavern ambience',
     on: 'On',
     off: 'Off',
     language: 'Language',
@@ -182,8 +184,8 @@ const UI_TEXT = {
       ['始め方', 'まず今日を話し、配方を確認してから計時します。終わったものだけチェックしてください。'],
     ],
     settingsTitle: 'バーの好み',
-    whiteNoise: '環境音',
-    whiteNoiseHint: '低い店内音',
+    whiteNoise: 'BGM',
+    whiteNoiseHint: '酒場の雰囲気',
     on: '入',
     off: '切',
     language: '言語',
@@ -222,8 +224,8 @@ const UI_TEXT = {
       ['시작하기', '오늘을 먼저 말하고, 배합을 확인한 뒤 타이머를 시작해요. 끝난 항목만 체크하면 됩니다.'],
     ],
     settingsTitle: '바 취향',
-    whiteNoise: '백색소음',
-    whiteNoiseHint: '낮은 바 소리',
+    whiteNoise: '배경음악',
+    whiteNoiseHint: '주점 분위기',
     on: '켬',
     off: '끔',
     language: '언어',
@@ -266,7 +268,6 @@ export default function App() {
   const [editingName, setEditingName] = useState(false)
   const [renameDraft, setRenameDraft] = useState('')
   const bartenderReadyAt = useRef(0)
-  const noiseRef = useRef(null)
   const swipeStartRef = useRef(null)
   const Page = PAGES[state.step] || BartenderPage
   const showShell = introStage === 'app'
@@ -348,6 +349,8 @@ export default function App() {
     const handler = (event) => {
       const target = event.target?.closest?.('button,a,[role="button"]')
       if (!target) return
+      const sfxId = resolveButtonSfx(target)
+      if (sfxId) playUiSound(sfxId)
       const label = target.getAttribute('aria-label') || target.textContent || target.className || 'tap'
       recordEvent({
         type: 'click',
@@ -386,45 +389,16 @@ export default function App() {
     dispatch({ type: 'GO', step: 'reveal' })
   }
 
-  const stopWhiteNoise = () => {
-    const noise = noiseRef.current
-    if (!noise) return
-    try {
-      noise.source?.stop()
-      noise.audioCtx?.close()
-    } catch {}
-    noiseRef.current = null
-  }
-
-  const startWhiteNoise = () => {
-    stopWhiteNoise()
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext
-    if (!AudioContextClass) return
-    const audioCtx = new AudioContextClass()
-    const bufferSize = Math.max(2, audioCtx.sampleRate * 2)
-    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate)
-    const data = buffer.getChannelData(0)
-    for (let i = 0; i < bufferSize; i += 1) {
-      const soft = (Math.random() * 2 - 1) * 0.18
-      const shimmer = Math.sin(i / 83) * 0.012
-      data[i] = soft + shimmer
-    }
-    const source = audioCtx.createBufferSource()
-    const gain = audioCtx.createGain()
-    source.buffer = buffer
-    source.loop = true
-    gain.gain.value = 0.045
-    source.connect(gain)
-    gain.connect(audioCtx.destination)
-    source.start()
-    noiseRef.current = { audioCtx, source, gain }
-  }
-
   const toggleWhiteNoise = () => {
     setWhiteNoiseOn((on) => {
-      if (on) stopWhiteNoise()
-      else startWhiteNoise()
-      return !on
+      if (on) {
+        stopBgm()
+        return false
+      }
+      startBgm().then((started) => {
+        if (!started) setWhiteNoiseOn(false)
+      })
+      return true
     })
   }
 
@@ -489,7 +463,7 @@ export default function App() {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
   }, [introStage, state.step])
 
-  useEffect(() => () => stopWhiteNoise(), [])
+  useEffect(() => () => stopBgm(), [])
 
   useEffect(() => {
     if (!showShell) return undefined
