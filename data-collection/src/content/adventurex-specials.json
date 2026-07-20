@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "host": {
+    "name": "桂花"
+  },
+  "defaultContentKey": "daily_start",
+  "states": [
+    { "id": "ready", "label": "已经想清楚，准备开工" },
+    { "id": "stuck", "label": "有点卡住，需要拆一步" },
+    { "id": "scattered", "label": "事情太多，想先收拢" },
+    { "id": "low-energy", "label": "能量不高，想轻轻开始" },
+    { "id": "exploring", "label": "还在找方向" }
+  ],
+  "rules": [
+    {
+      "id": "blocker-direction",
+      "when": { "blockerKeywords": ["不知道", "不清楚", "没方向", "从哪里", "怎么开始"] },
+      "contentKey": "fog_lift"
+    },
+    {
+      "id": "blocker-time",
+      "when": { "blockerKeywords": ["没时间", "时间不够", "被打断", "拖延", "太忙"] },
+      "contentKey": "time_guard"
+    },
+    {
+      "id": "blocker-confidence",
+      "when": { "blockerKeywords": ["不敢", "害怕", "担心", "没信心", "怕做不好"] },
+      "contentKey": "courage_sip"
+    },
+    {
+      "id": "creator-exploring",
+      "when": { "identities": ["创作者"], "states": ["exploring"] },
+      "contentKey": "inspiration_compass"
+    },
+    {
+      "id": "creator-ready",
+      "when": { "identities": ["创作者"], "states": ["ready"] },
+      "contentKey": "first_draft_spark"
+    },
+    {
+      "id": "developer-stuck",
+      "when": { "identities": ["开发者"], "states": ["stuck"] },
+      "contentKey": "debug_first_step"
+    },
+    {
+      "id": "developer-ready",
+      "when": { "identities": ["开发者"], "states": ["ready"] },
+      "contentKey": "ship_small"
+    },
+    {
+      "id": "product-scattered",
+      "when": { "identities": ["产品 / 运营"], "states": ["scattered"] },
+      "contentKey": "mainline_focus"
+    },
+    {
+      "id": "student-low-energy",
+      "when": { "identities": ["学生"], "states": ["low-energy"] },
+      "contentKey": "gentle_study"
+    },
+    {
+      "id": "explorer-exploring",
+      "when": { "identities": ["正在探索的人"], "states": ["exploring"] },
+      "contentKey": "open_map"
+    },
+    {
+      "id": "has-blocker",
+      "when": { "blockerPresent": true },
+      "contentKey": "smallest_gap"
+    },
+    {
+      "id": "state-stuck",
+      "when": { "states": ["stuck"] },
+      "contentKey": "untie_one_knot"
+    },
+    {
+      "id": "state-scattered",
+      "when": { "states": ["scattered"] },
+      "contentKey": "gather_the_table"
+    },
+    {
+      "id": "state-low-energy",
+      "when": { "states": ["low-energy"] },
+      "contentKey": "slow_start"
+    },
+    {
+      "id": "state-exploring",
+      "when": { "states": ["exploring"] },
+      "contentKey": "find_a_marker"
+    },
+    {
+      "id": "state-ready",
+      "when": { "states": ["ready"] },
+      "contentKey": "daily_start"
+    }
+  ],
+  "content": {
+    "daily_start": {
+      "name": "桂花启程苏打",
+      "keywords": ["马上开始", "保留节奏", "完成一小段"],
+      "feedback": "你已经站在起点上了。先完成最短的一段，让今天有一个清楚的开场。"
+    },
+    "fog_lift": {
+      "name": "雾散桂花茶",
+      "keywords": ["列出未知", "选一个入口", "先试再判断"],
+      "feedback": "先不用找到完整答案。写下一个可以验证的问题，再为它安排十分钟。"
+    },
+    "time_guard": {
+      "name": "十分钟桂花钟",
+      "keywords": ["守住时间", "关闭干扰", "只做一段"],
+      "feedback": "给这件事留一个不会被挪走的十分钟，只推进一个看得见的结果。"
+    },
+    "courage_sip": {
+      "name": "桂花勇气气泡",
+      "keywords": ["降低门槛", "允许粗糙", "先发一版"],
+      "feedback": "今天不需要证明自己，只需要允许第一版出现。粗糙也算真实的前进。"
+    },
+    "inspiration_compass": {
+      "name": "桂花灵感罗盘",
+      "keywords": ["收集线索", "选择主题", "做一张草图"],
+      "feedback": "把最让你好奇的那条线索圈出来，用一张草图替代一次漫长犹豫。"
+    },
+    "first_draft_spark": {
+      "name": "初稿桂花火花",
+      "keywords": ["先成形", "暂不润色", "让作品出现"],
+      "feedback": "先让作品拥有一个可以被看见的形状，润色留给下一杯。"
+    },
+    "debug_first_step": {
+      "name": "桂花调试汤力",
+      "keywords": ["复现问题", "缩小范围", "验证一步"],
+      "feedback": "先复现最小问题，再只改一个变量。今天的答案藏在下一次可验证的尝试里。"
+    },
+    "ship_small": {
+      "name": "小步发布桂花汽水",
+      "keywords": ["切小范围", "跑通主线", "尽早反馈"],
+      "feedback": "把发布范围缩到最小，但让主线完整跑通。真实反馈比继续猜测更有用。"
+    },
+    "mainline_focus": {
+      "name": "主线桂花苏打",
+      "keywords": ["只留一件", "明确对象", "确认完成标准"],
+      "feedback": "先选今天唯一的主线，再写清楚它为谁解决什么，以及做到哪里算完成。"
+    },
+    "gentle_study": {
+      "name": "轻读桂花露",
+      "keywords": ["降低份量", "读一小节", "留下笔记"],
+      "feedback": "能量不高时，把目标缩成一小节和一句笔记。保持连接，比一次学很多更重要。"
+    },
+    "open_map": {
+      "name": "开图桂花气泡",
+      "keywords": ["记录好奇", "短暂试走", "不急着定义"],
+      "feedback": "今天先走一条最有好奇心的支线。探索的成果，是排除一个方向或发现一个新问题。"
+    },
+    "smallest_gap": {
+      "name": "桂花过坎特调",
+      "keywords": ["说清卡点", "拆到最小", "马上验证"],
+      "feedback": "别和整个卡点较劲。找到它最薄的一处，先做一个能让局面变化的小动作。"
+    },
+    "untie_one_knot": {
+      "name": "解结桂花茶",
+      "keywords": ["只解一结", "写下下一步", "完成即停"],
+      "feedback": "把卡住的地方写成一个动作句，只解开这一结，其他问题先留在吧台外。"
+    },
+    "gather_the_table": {
+      "name": "收桌桂花苏打",
+      "keywords": ["全部写下", "只选一件", "暂存其余"],
+      "feedback": "先把脑中的事情全部放到桌上，再只留下今天最值得推进的一件。"
+    },
+    "slow_start": {
+      "name": "慢启桂花露",
+      "keywords": ["动作要轻", "五分钟开始", "允许暂停"],
+      "feedback": "今天用最轻的动作开场。五分钟也算开始，完成后再决定要不要继续。"
+    },
+    "find_a_marker": {
+      "name": "寻路桂花气泡",
+      "keywords": ["选一个标记", "试走十分钟", "回来记录"],
+      "feedback": "不必一次选定方向。先找一个能验证喜不喜欢的路标，走十分钟再回来记录。"
+    }
+  }
+}

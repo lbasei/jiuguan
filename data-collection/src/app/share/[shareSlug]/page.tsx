@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { safeExternalUrl } from "@/lib/collection/adventure";
+import { getTodaySpecialStateLabel } from "@/lib/collection/today-special-engine";
 
 type VoucherData = {
   kind?: string;
   identity?: string;
+  state?: string;
   task?: string;
   blocker?: string | null;
   promise?: string;
@@ -23,6 +25,9 @@ type VoucherData = {
     bartender?: string;
     keywords?: string[];
     completion_hint?: string;
+    rule_id?: string;
+    content_key?: string;
+    content_version?: number;
   };
 };
 
@@ -61,7 +66,7 @@ function TodaySpecialPage({
 
       <section className="border-2 border-zinc-900 bg-sky-50 p-6 shadow-[6px_6px_0_#18181b]">
         <p className="text-xs font-medium tracking-[0.12em] text-zinc-500">TODAY&apos;S SPECIAL</p>
-        <h2 className="mt-3 text-2xl font-semibold text-zinc-900">{data.special?.name || "桂花今日特调"}</h2>
+        <h2 className="mt-3 text-2xl font-semibold text-zinc-900">{data.special?.name || "今日特调"}</h2>
         <p className="mt-2 text-sm text-zinc-700">调酒师：{data.special?.bartender || "桂花"}</p>
 
         <div className="mt-6 flex flex-col gap-2 border-y border-zinc-300 py-5">
@@ -80,6 +85,12 @@ function TodaySpecialPage({
             <dt className="text-xs font-medium text-zinc-500">今天想做的事</dt>
             <dd className="mt-1 text-base leading-6 text-zinc-900">{data.task || "把今天端上吧台"}</dd>
           </div>
+          {data.state ? (
+            <div>
+              <dt className="text-xs font-medium text-zinc-500">当前状态</dt>
+              <dd className="mt-1 text-zinc-900">{getTodaySpecialStateLabel(data.state)}</dd>
+            </div>
+          ) : null}
           {data.blocker ? (
             <div>
               <dt className="text-xs font-medium text-zinc-500">当前卡点</dt>

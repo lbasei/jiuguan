@@ -4,6 +4,7 @@ import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createEntry } from "@/lib/collection/create-entry";
 import { issueTodaySpecial, safeExternalUrl } from "@/lib/collection/adventure";
+import { getTodaySpecialStateLabel, TODAY_SPECIAL_STATES } from "@/lib/collection/today-special-engine";
 
 const DEFAULT_CAMPAIGN = "adventurex-2026";
 
@@ -15,6 +16,7 @@ function GuideForm() {
   const returnTo = safeExternalUrl(searchParams.get("return_to"));
   const draft = searchParams.get("draft")?.trim().slice(0, 120) || "";
   const [identity, setIdentity] = useState("创作者");
+  const [currentState, setCurrentState] = useState("ready");
   const [task, setTask] = useState(draft);
   const [blocker, setBlocker] = useState("");
   const [wechat, setWechat] = useState("");
@@ -38,9 +40,10 @@ function GuideForm() {
       const entry = await createEntry({
         template_slug: "tavern-guide",
         title: normalizedTask,
-        description: `${identity}${normalizedBlocker ? ` · 卡点：${normalizedBlocker}` : ""}`,
+        description: `${identity} · ${getTodaySpecialStateLabel(currentState)}${normalizedBlocker ? ` · 卡点：${normalizedBlocker}` : ""}`,
         extra: {
           identity,
+          state: currentState,
           task: normalizedTask,
           blocker: normalizedBlocker || undefined,
         },
@@ -61,6 +64,7 @@ function GuideForm() {
         entryId: entry.id,
         campaign,
         identity,
+        state: currentState,
         task: normalizedTask,
         blocker: normalizedBlocker,
         returnTo,
@@ -93,6 +97,13 @@ function GuideForm() {
             <option>产品 / 运营</option>
             <option>学生</option>
             <option>正在探索的人</option>
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-2 text-sm">
+          <span className="font-medium text-zinc-900">你现在更像哪种状态？</span>
+          <select value={currentState} onChange={(event) => setCurrentState(event.target.value)} className="border border-zinc-300 bg-white px-3 py-2.5 outline-none focus:border-sky-700">
+            {TODAY_SPECIAL_STATES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
           </select>
         </label>
 

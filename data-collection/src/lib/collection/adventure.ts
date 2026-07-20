@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { resolveTodaySpecial } from "@/lib/collection/today-special-engine";
 
 export const ADVENTURE_PARK_STOPS = [
   {
@@ -84,6 +85,7 @@ export type IssueTodaySpecialInput = {
   entryId: string;
   campaign: string;
   identity: string;
+  state: string;
   task: string;
   blocker: string;
   returnTo?: string | null;
@@ -140,26 +142,6 @@ export async function issueAdventureVoucher(
   throw new Error("体验码生成失败，请稍后重试。");
 }
 
-function getTodaySpecial(input: IssueTodaySpecialInput) {
-  const hasBlocker = Boolean(input.blocker.trim());
-  const specialName = hasBlocker
-    ? "桂花破冰特调"
-    : input.identity.includes("创")
-      ? "桂花灵感特调"
-      : "桂花今日特调";
-
-  return {
-    name: specialName,
-    bartender: "桂花",
-    keywords: hasBlocker
-      ? ["先迈一小步", "拆开卡点", "今天就开始"]
-      : ["把今天端上吧台", "按自己的节奏", "完成一件小事"],
-    completion_hint: hasBlocker
-      ? "先处理最小的一步，卡点会在行动里松开。"
-      : "把这件事安排进今天，完成后回来收下新的配方。",
-  };
-}
-
 export async function issueTodaySpecial(
   input: IssueTodaySpecialInput,
 ): Promise<IssuedAdventureVoucher> {
@@ -168,7 +150,7 @@ export async function issueTodaySpecial(
   const account = process.env.NEXT_PUBLIC_TAVERN_ACCOUNT?.trim() || "种种酒馆";
   const contact =
     process.env.NEXT_PUBLIC_TAVERN_CONTACT?.trim() || "请在展位添加微信";
-  const special = getTodaySpecial(input);
+  const special = resolveTodaySpecial(input);
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const shareSlug = createPublicCode("MENU");
@@ -184,6 +166,7 @@ export async function issueTodaySpecial(
         campaign: input.campaign,
         issued_at: new Date().toISOString(),
         identity: input.identity,
+        state: input.state,
         task: input.task,
         blocker: input.blocker || null,
         special,

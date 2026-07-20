@@ -12,12 +12,14 @@
 ## 现场动线
 
 1. 访问酒馆首页：选择 **进入酒馆** 会进入桂花的现场引导页；选择 **Adventure** 会直接进入联名游园入口。
-2. 点击“填写今日酒单”，跳转到 `/collect/tavern-guide`，填写身份、今天想完成的事和可选卡点。
+2. 点击“填写今日酒单”，跳转到 `/collect/tavern-guide`，填写身份、当前状态、今天想完成的事和可选卡点。
 3. 系统把表单内容保存到 `entries`，把可选微信及联系授权单独保存到 `entry_contacts`，并生成 `MENU-...` 今日特调链接。
 4. 访客在 `/share/MENU-...` 查看今日特调、关键词与完成提示，向工作人员出示该页领取现场奖励。
 5. 在桂花引导页点击“进入联名游园”，跳转到信息收集服务的数字地图。
 6. 选择联名摊位、角色或地点，保存游园印章；随后在承诺池填写承诺、期限、重要程度、投入时间和微信。
 7. 系统生成 `ADV-...` 创始体验码与现场小卡。工作人员在 `data-collection` 的 `/staff/redeem` 输入体验码，完成一次性核销。
+
+AdventureX 的今日特调使用简化规则引擎，不调用日常酒馆的 `nameDrink()`。触发条件与文案集中在 `data-collection/src/content/adventurex-specials.json`，规则解析位于 `data-collection/src/lib/collection/today-special-engine.ts`。桂花固定为现场主持人，特调名、关键词与反馈会根据身份、状态和卡点变化。
 
 ## 环境要求
 

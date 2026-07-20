@@ -3,11 +3,18 @@
 酒馆入口和信息收集系统通过深链与同一 Supabase 项目连接。访客可以先走“今日酒单”引导，也可以继续进入联名游园：
 
 1. 酒馆的“进入酒馆”先打开桂花引导页；“填写今日酒单”跳转到 `/collect/tavern-guide`。
-2. 访客填写身份、今天想做的事和可选的当前卡点；内容写入 `entries`，可选微信与联系授权写入 `entry_contacts`。
+2. 访客填写身份、当前状态、今天想做的事和可选卡点；内容写入 `entries`，可选微信与联系授权写入 `entry_contacts`。
 3. 浏览器使用当前匿名会话创建一个 `generated_pages` 记录，`share_slug` 为 `MENU-...` 的今日特调现场凭证。
 4. `/share/[shareSlug]` 显示今日特调、身份、目标、卡点和关键词；访客可向工作人员出示该页领取现场奖励。
 5. 引导页的“进入联名游园”打开 `/collect/tavern-park`，记录选择的摊位、角色或地点。
 6. 游园页将选择暂存于当前浏览器，并进入 `/collect/tavern-promise`。承诺池写入承诺、期限、重要程度和投入时间后，生成 `ADV-...` 创始体验码，可在 `/staff/redeem` 完成一次性核销。
+
+## AdventureX 今日特调规则
+
+- `src/content/adventurex-specials.json` 保存状态选项、触发条件、特调名、关键词和反馈文案。
+- `src/lib/collection/today-special-engine.ts` 只负责按顺序匹配规则并读取内容，不调用日常酒馆的 `nameDrink()` 动态调酒引擎。
+- 匹配顺序为：卡点关键词、身份与状态组合、是否存在卡点、状态兜底、默认内容。
+- 桂花是固定现场主持人；生成结果同时记录 `rule_id`、`content_key` 与 `content_version`，便于后续分析和更新文案。
 
 ## 上线前配置
 
