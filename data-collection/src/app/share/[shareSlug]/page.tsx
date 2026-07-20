@@ -7,6 +7,9 @@ import { safeExternalUrl } from "@/lib/collection/adventure";
 
 type VoucherData = {
   kind?: string;
+  identity?: string;
+  task?: string;
+  blocker?: string | null;
   promise?: string;
   deadline?: string;
   importance?: number;
@@ -15,6 +18,12 @@ type VoucherData = {
   park_stop?: { label?: string; kind?: string } | null;
   tavern?: { account?: string; contact?: string };
   return_to?: string | null;
+  special?: {
+    name?: string;
+    bartender?: string;
+    keywords?: string[];
+    completion_hint?: string;
+  };
 };
 
 type VoucherPage = {
@@ -25,6 +34,78 @@ type VoucherPage = {
 
 function asVoucherData(value: unknown): VoucherData {
   return value && typeof value === "object" ? (value as VoucherData) : {};
+}
+
+function TodaySpecialPage({
+  page,
+  data,
+  copied,
+  onCopy,
+}: {
+  page: VoucherPage;
+  data: VoucherData;
+  copied: boolean;
+  onCopy: () => void;
+}) {
+  const returnTo = safeExternalUrl(data.return_to);
+  const rawKeywords = data.special?.keywords;
+  const keywords = Array.isArray(rawKeywords) ? rawKeywords : [];
+
+  return (
+    <main className="mx-auto flex min-h-full w-full max-w-xl flex-col gap-7 px-5 py-10 font-sans sm:px-8">
+      <header className="space-y-3">
+        <p className="text-sm font-medium text-sky-700">种种酒馆 · 今日特调</p>
+        <h1 className="text-3xl font-semibold text-zinc-900">桂花已为你备好一杯</h1>
+        <p className="text-sm leading-6 text-zinc-600">这张结果页记录今天想做的事，也可以作为现场凭证使用。</p>
+      </header>
+
+      <section className="border-2 border-zinc-900 bg-sky-50 p-6 shadow-[6px_6px_0_#18181b]">
+        <p className="text-xs font-medium tracking-[0.12em] text-zinc-500">TODAY&apos;S SPECIAL</p>
+        <h2 className="mt-3 text-2xl font-semibold text-zinc-900">{data.special?.name || "桂花今日特调"}</h2>
+        <p className="mt-2 text-sm text-zinc-700">调酒师：{data.special?.bartender || "桂花"}</p>
+
+        <div className="mt-6 flex flex-col gap-2 border-y border-zinc-300 py-5">
+          <code className="break-all bg-white px-4 py-3 text-center font-mono text-lg font-semibold tracking-wider text-zinc-900">{page.share_slug}</code>
+          <button type="button" onClick={onCopy} className="self-end text-sm font-medium text-zinc-700 underline underline-offset-4">
+            {copied ? "已复制" : "复制现场凭证"}
+          </button>
+        </div>
+
+        <dl className="mt-6 grid gap-5 text-sm text-zinc-700">
+          <div>
+            <dt className="text-xs font-medium text-zinc-500">今天的身份</dt>
+            <dd className="mt-1 font-medium text-zinc-900">{data.identity || "酒馆来客"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium text-zinc-500">今天想做的事</dt>
+            <dd className="mt-1 text-base leading-6 text-zinc-900">{data.task || "把今天端上吧台"}</dd>
+          </div>
+          {data.blocker ? (
+            <div>
+              <dt className="text-xs font-medium text-zinc-500">当前卡点</dt>
+              <dd className="mt-1 leading-6 text-zinc-900">{data.blocker}</dd>
+            </div>
+          ) : null}
+          {keywords.length ? (
+            <div>
+              <dt className="text-xs font-medium text-zinc-500">关键词</dt>
+              <dd className="mt-2 flex flex-wrap gap-2">
+                {keywords.map((keyword) => <span key={keyword} className="border border-sky-300 bg-white px-2 py-1 text-xs text-sky-900">{keyword}</span>)}
+              </dd>
+            </div>
+          ) : null}
+        </dl>
+
+        <p className="mt-6 border-t border-zinc-300 pt-5 text-sm leading-6 text-zinc-700">{data.special?.completion_hint || "完成一件小事后，回来收下今天的下一层配方。"}</p>
+        <div className="mt-5 text-sm text-zinc-700">
+          <p className="font-medium text-zinc-900">{data.tavern?.account || "种种酒馆"}</p>
+          <p className="mt-1">{data.tavern?.contact || "请前往展位咨询"}</p>
+        </div>
+      </section>
+
+      {returnTo ? <a href={returnTo} className="text-center text-sm font-medium text-zinc-900 underline underline-offset-4">返回种种酒馆</a> : null}
+    </main>
+  );
 }
 
 export default function ShareVoucherPage() {
@@ -96,6 +177,9 @@ export default function ShareVoucherPage() {
   }
 
   const data = page.render_data;
+  if (data.kind === "tavern-today-special") {
+    return <TodaySpecialPage page={page} data={data} copied={copied} onCopy={copyCode} />;
+  }
   const returnTo = safeExternalUrl(data.return_to);
   const issuedAt = data.issued_at ? new Date(data.issued_at).toLocaleDateString("zh-CN") : "今天";
 

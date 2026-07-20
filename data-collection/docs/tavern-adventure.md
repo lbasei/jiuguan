@@ -1,16 +1,17 @@
 # 种种酒馆现场流程
 
-酒馆入口和信息收集系统通过深链与同一 Supabase 项目连接：
+酒馆入口和信息收集系统通过深链与同一 Supabase 项目连接。访客可以先走“今日酒单”引导，也可以继续进入联名游园：
 
-1. 酒馆的“进入联名游园”打开 `/collect/tavern-park`，记录选择的摊位、角色或地点。
-2. 游园页将选择暂存于当前浏览器，并进入 `/collect/tavern-promise`。
-3. 承诺池将承诺、期限、重要程度、投入时间写入 `entries`，联系方式和授权写入 `entry_contacts`。
-4. 浏览器使用当前匿名会话为该条承诺创建一个 `generated_pages` 记录，`share_slug` 即 ADV 创始体验码。
-5. `/share/[shareSlug]` 显示现场小卡；工作人员在 `/staff/redeem` 输入该体验码后完成一次性核销。
+1. 酒馆的“进入酒馆”先打开桂花引导页；“填写今日酒单”跳转到 `/collect/tavern-guide`。
+2. 访客填写身份、今天想做的事和可选的当前卡点；内容写入 `entries`，可选微信与联系授权写入 `entry_contacts`。
+3. 浏览器使用当前匿名会话创建一个 `generated_pages` 记录，`share_slug` 为 `MENU-...` 的今日特调现场凭证。
+4. `/share/[shareSlug]` 显示今日特调、身份、目标、卡点和关键词；访客可向工作人员出示该页领取现场奖励。
+5. 引导页的“进入联名游园”打开 `/collect/tavern-park`，记录选择的摊位、角色或地点。
+6. 游园页将选择暂存于当前浏览器，并进入 `/collect/tavern-promise`。承诺池写入承诺、期限、重要程度和投入时间后，生成 `ADV-...` 创始体验码，可在 `/staff/redeem` 完成一次性核销。
 
 ## 上线前配置
 
-1. 在 Supabase SQL Editor 按顺序执行既有 migrations，再执行 `20260720010000_tavern_adventure.sql`。
+1. 在 Supabase SQL Editor 按顺序执行既有 migrations，再执行 `20260720010000_tavern_adventure.sql` 与 `20260720020000_tavern_guide.sql`。
 2. 在 Supabase Authentication 启用 Anonymous Sign-Ins；现场采集通过匿名会话受 RLS 保护。
 3. 设置 data-collection 的 `NEXT_PUBLIC_TAVERN_ACCOUNT` 和 `NEXT_PUBLIC_TAVERN_CONTACT`，这两个值会公开显示在每一张小卡上。
 4. 设置 jiuguan 的 `VITE_COLLECT_BASE_URL` 与 `VITE_TAVERN_BASE_URL` 为生产 URL。酒馆会把 `return_to` 参数传给信息收集系统，凭证页可回到酒馆。
@@ -18,5 +19,6 @@
 ## 隐私边界
 
 - 微信与授权信息只写入 `entry_contacts`，不进入公开的 `generated_pages.render_data`。
-- 凭证为持有即展示的现场码；其中仅包含游园点位、承诺和酒馆公开联系方式。
+- 今日特调凭证会公开展示身份、今天的目标与可选卡点，这是访客在提交前可见的现场展示内容；不要在这些字段填入敏感信息。
+- 凭证为持有即展示的现场码；其中仅包含游园点位、承诺或今日特调，以及酒馆公开联系方式。
 - 工作人员核销使用服务端 `SUPABASE_SERVICE_ROLE_KEY`，该密钥不会下发到浏览器。

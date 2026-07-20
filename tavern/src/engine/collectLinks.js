@@ -69,3 +69,7 @@ export function getAdventureActions(env = {}) {
     },
   ].map((item) => ({ ...item, campaign: cfg.campaign }))
 }
+
+export function getTavernGuideUrl(env = {}) {
+  return buildCollectUrl('tavern-guide', { source: 'booth' }, env)
+}

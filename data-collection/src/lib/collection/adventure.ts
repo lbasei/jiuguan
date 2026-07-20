@@ -48,8 +48,8 @@ function randomPart(length: number) {
   return Array.from(bytes, (byte) => CODE_ALPHABET[byte % CODE_ALPHABET.length]).join("");
 }
 
-function createVoucherCode() {
-  return `ADV-${randomPart(4)}-${randomPart(4)}-${randomPart(4)}`;
+function createPublicCode(prefix: string) {
+  return `${prefix}-${randomPart(4)}-${randomPart(4)}-${randomPart(4)}`;
 }
 
 export function safeExternalUrl(value: string | null | undefined) {
@@ -80,6 +80,15 @@ export type IssuedAdventureVoucher = {
   shareSlug: string;
 };
 
+export type IssueTodaySpecialInput = {
+  entryId: string;
+  campaign: string;
+  identity: string;
+  task: string;
+  blocker: string;
+  returnTo?: string | null;
+};
+
 /**
  * A voucher is a public, bearer-style field card. Personal contact data stays
  * in entry_contacts and is intentionally excluded from render_data.
@@ -94,7 +103,7 @@ export async function issueAdventureVoucher(
     process.env.NEXT_PUBLIC_TAVERN_CONTACT?.trim() || "请前往种种酒馆展位咨询";
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const shareSlug = createVoucherCode();
+    const shareSlug = createPublicCode("ADV");
     const { error } = await supabase.from("generated_pages").insert({
       entry_id: input.entryId,
       template_slug: "tavern-promise",
@@ -129,4 +138,65 @@ export async function issueAdventureVoucher(
   }
 
   throw new Error("体验码生成失败，请稍后重试。");
+}
+
+function getTodaySpecial(input: IssueTodaySpecialInput) {
+  const hasBlocker = Boolean(input.blocker.trim());
+  const specialName = hasBlocker
+    ? "桂花破冰特调"
+    : input.identity.includes("创")
+      ? "桂花灵感特调"
+      : "桂花今日特调";
+
+  return {
+    name: specialName,
+    bartender: "桂花",
+    keywords: hasBlocker
+      ? ["先迈一小步", "拆开卡点", "今天就开始"]
+      : ["把今天端上吧台", "按自己的节奏", "完成一件小事"],
+    completion_hint: hasBlocker
+      ? "先处理最小的一步，卡点会在行动里松开。"
+      : "把这件事安排进今天，完成后回来收下新的配方。",
+  };
+}
+
+export async function issueTodaySpecial(
+  input: IssueTodaySpecialInput,
+): Promise<IssuedAdventureVoucher> {
+  const supabase = createClient();
+  const returnTo = safeExternalUrl(input.returnTo);
+  const account = process.env.NEXT_PUBLIC_TAVERN_ACCOUNT?.trim() || "种种酒馆";
+  const contact =
+    process.env.NEXT_PUBLIC_TAVERN_CONTACT?.trim() || "请在展位添加微信";
+  const special = getTodaySpecial(input);
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const shareSlug = createPublicCode("MENU");
+    const { error } = await supabase.from("generated_pages").insert({
+      entry_id: input.entryId,
+      template_slug: "tavern-guide",
+      share_slug: shareSlug,
+      status: "ready",
+      is_public: true,
+      render_data: {
+        kind: "tavern-today-special",
+        version: 1,
+        campaign: input.campaign,
+        issued_at: new Date().toISOString(),
+        identity: input.identity,
+        task: input.task,
+        blocker: input.blocker || null,
+        special,
+        tavern: { account, contact },
+        return_to: returnTo,
+      },
+    });
+
+    if (!error) return { shareSlug };
+    if (!/duplicate key|unique/i.test(error.message) || attempt === 2) {
+      throw new Error(error.message);
+    }
+  }
+
+  throw new Error("今日特调生成失败，请稍后重试。");
 }

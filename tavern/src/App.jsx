@@ -5,6 +5,7 @@ import { recordEvent } from './engine/cellarApi.js'
 import LoginPage from './pages/LoginPage.jsx'
 import IntroPage from './pages/IntroPage.jsx'
 import AdventurePage from './pages/AdventurePage.jsx'
+import GuidePage from './pages/GuidePage.jsx'
 import GuestProfilePage from './pages/GuestProfilePage.jsx'
 import BartenderPage from './pages/BartenderPage.jsx'
 import TodoPage from './pages/TodoPage.jsx'
@@ -519,8 +520,17 @@ export default function App() {
     return (
       <IntroPage
         onQuickStart={() => startIntro('quick')}
-        onFullStart={() => startIntro('full')}
+        onFullStart={() => setIntroStage('guide')}
         onAdventure={() => setIntroStage('adventure')}
+      />
+    )
+  }
+  if (introStage === 'guide') {
+    return (
+      <GuidePage
+        onAdventure={() => setIntroStage('adventure')}
+        onDailyTavern={() => startIntro('full')}
+        onBack={() => setIntroStage('intro')}
       />
     )
   }

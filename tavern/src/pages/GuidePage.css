@@ -1,0 +1,120 @@
+.tavern-guide-page {
+  display: grid;
+  place-items: center;
+  min-height: 100svh;
+  padding: 28px 20px;
+  box-sizing: border-box;
+}
+
+.tavern-guide-panel {
+  width: min(560px, 100%);
+  border-left: 4px solid #e0902e;
+  padding: 24px 26px;
+  background: rgba(255, 253, 244, 0.9);
+  box-shadow: 5px 5px 0 rgba(62, 42, 24, 0.25);
+  z-index: 2;
+}
+
+.tavern-guide-host {
+  margin: 0;
+  color: #9b661d;
+  font-size: 13px;
+}
+
+.tavern-guide-panel h1 {
+  margin: 9px 0 10px;
+  color: #3e2a18;
+  font-size: clamp(27px, 7vw, 40px);
+  line-height: 1.12;
+}
+
+.tavern-guide-lead {
+  margin: 0;
+  color: #735b45;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.tavern-guide-steps {
+  display: grid;
+  gap: 14px;
+  margin: 24px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tavern-guide-steps li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.tavern-guide-steps li > span {
+  color: #e0902e;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.tavern-guide-steps p {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+}
+
+.tavern-guide-steps strong {
+  color: #3e2a18;
+  font-size: 15px;
+}
+
+.tavern-guide-steps small {
+  color: #735b45;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.tavern-guide-actions {
+  display: grid;
+  gap: 9px;
+}
+
+.tavern-guide-primary,
+.tavern-guide-secondary,
+.tavern-guide-text {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 14px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.tavern-guide-primary,
+.tavern-guide-secondary {
+  padding: 12px 16px;
+  border: 1px solid #3e2a18;
+  text-decoration: none;
+}
+
+.tavern-guide-primary {
+  background: #3e2a18;
+  color: #fffdf4;
+}
+
+.tavern-guide-secondary {
+  background: #fffdf4;
+  color: #3e2a18;
+}
+
+.tavern-guide-text {
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  color: #735b45;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .tavern-guide-page { padding: 18px 14px; }
+  .tavern-guide-panel { padding: 21px 19px; }
+}

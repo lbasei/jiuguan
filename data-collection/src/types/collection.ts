@@ -9,7 +9,8 @@ export type TemplateSlug =
   | "today-menu"
   | "booth-record"
   | "tavern-park"
-  | "tavern-promise";
+  | "tavern-promise"
+  | "tavern-guide";
 
 export type TemplateRenderType =
   | "form"
@@ -171,6 +172,7 @@ export const TEMPLATE_SLUGS: TemplateSlug[] = [
   "booth-record",
   "tavern-park",
   "tavern-promise",
+  "tavern-guide",
 ];
 
 /** Storage bucket for entry images (private). */
