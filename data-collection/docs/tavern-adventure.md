@@ -6,8 +6,8 @@
 2. 访客填写身份、当前状态、今天想做的事和可选卡点；内容写入 `entries`，可选微信与联系授权写入 `entry_contacts`。
 3. 浏览器使用当前匿名会话创建一个 `generated_pages` 记录，`share_slug` 为 `MENU-...` 的今日特调现场凭证。
 4. `/share/[shareSlug]` 显示今日特调、身份、目标、卡点和关键词；访客可向工作人员出示该页领取现场奖励。
-5. 引导页的“进入联名游园”打开 `/collect/tavern-park`，记录选择的摊位、角色或地点。
-6. 游园页将选择暂存于当前浏览器，并进入 `/collect/tavern-promise`。承诺池写入承诺、期限、重要程度和投入时间后，生成 `ADV-...` 创始体验码，可在 `/staff/redeem` 完成一次性核销。
+5. 引导页的“进入联名游园”打开 `/collect/tavern-park`，展示酒鬼地图骨架：主题地标 + 可点摊位钉；点位数据来自 `adventure_partners`（含 zone / pin / booth_no），图片来自 `partner_media`。
+6. 选中摊位后展示任务、奖励、官网与二维码；打卡写入 `entries.extra` 后进入 `/collect/tavern-promise`。承诺池写入承诺、期限、重要程度和投入时间后，生成 `ADV-...` 创始体验码，可在 `/staff/redeem` 完成一次性核销。
 
 ## AdventureX 今日特调规则
 
