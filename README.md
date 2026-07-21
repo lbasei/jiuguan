@@ -140,11 +140,12 @@ npm run dev
 当前生产环境保留两个 Vercel 项目，但访客只使用一个统一入口：
 
 - 统一入口：`https://lbasei-jiuguan.vercel.app`
+- 自定义入口：`https://zhongzhongforever.net`（已加入 Vercel，需在域名 DNS 控制台完成 A 记录验证）
 - 信息收集内部项目：`https://jiuguan-collect.vercel.app`
 
 访客从统一入口访问酒馆。`tavern/vercel.json` 会把统一域名下的 `/collect/*`、`/share/*`、`/staff/*`、`/auth/*` 与 `/_next/*` 转发到信息收集项目，因此浏览器地址不会切换到第二个域名。工作人员使用 `https://lbasei-jiuguan.vercel.app/staff/redeem`。
 
-酒馆项目的生产环境变量 `VITE_COLLECT_BASE_URL` 与 `VITE_TAVERN_BASE_URL` 都指向统一入口；信息收集项目保存 Supabase、核销口令与公开展示文案。服务端密钥只配置在 Vercel 环境变量中，不进入仓库。
+酒馆项目的生产环境变量 `VITE_COLLECT_BASE_URL` 与 `VITE_TAVERN_BASE_URL` 都设置为 `same-origin`，因此 Vercel 默认域名和自定义域名会自动保持当前来源；信息收集项目保存 Supabase、核销口令与公开展示文案。服务端密钥只配置在 Vercel 环境变量中，不进入仓库。
 
 当前未配置短信供应商，生产环境会禁用短信验证码登录并返回 `503`，桂花引导、Adventure、信息收集、结果分享与工作人员核销不受影响。启用日常酒馆登录前，需补充腾讯云短信或自有短信网关配置。
 

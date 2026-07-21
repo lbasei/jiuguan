@@ -14,10 +14,16 @@ function trimSlash(value = '') {
  */
 export function resolveCollectConfig(env = {}) {
   const browserOrigin = typeof window !== 'undefined' ? window.location.origin : ''
+  const configuredCollectBaseUrl = trimSlash(env.VITE_COLLECT_BASE_URL)
+  const configuredTavernBaseUrl = trimSlash(env.VITE_TAVERN_BASE_URL)
   return {
-    collectBaseUrl: trimSlash(env.VITE_COLLECT_BASE_URL) || DEFAULTS.collectBaseUrl,
+    collectBaseUrl: configuredCollectBaseUrl === 'same-origin'
+      ? browserOrigin || DEFAULTS.collectBaseUrl
+      : configuredCollectBaseUrl || DEFAULTS.collectBaseUrl,
     campaign: String(env.VITE_ADVENTURE_CAMPAIGN || DEFAULTS.campaign).trim() || DEFAULTS.campaign,
-    tavernBaseUrl: trimSlash(env.VITE_TAVERN_BASE_URL) || browserOrigin,
+    tavernBaseUrl: configuredTavernBaseUrl === 'same-origin'
+      ? browserOrigin
+      : configuredTavernBaseUrl || browserOrigin,
   }
 }
 
