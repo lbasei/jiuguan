@@ -117,7 +117,9 @@ function devLoginCode() {
 }
 
 function canUseDevLoginCode() {
-  return process.env.NODE_ENV !== 'production' && !process.env.VERCEL
+  // No SMS yet: allow fixed 123456 on local and Vercel.
+  // Once hasSmsProvider() is true, send-code / login use real SMS instead.
+  return true
 }
 
 function randomInviteCode(theme = 'zhongzhong') {
