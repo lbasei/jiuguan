@@ -11,7 +11,7 @@
 
 ## 现场动线
 
-1. 访问酒馆首页：选择 **进入酒馆** 会进入桂花的现场引导页；选择 **Adventure** 会直接进入联名游园入口。
+1. 访问酒馆首页：选择 **进入酒馆** 会进入桂花的现场引导页；选择 **Adventure** 会先看到 Supabase 驱动的联名伙伴卡片墙和游园入口。
 2. 点击“填写今日酒单”，跳转到 `/collect/tavern-guide`，填写身份、当前状态、今天想完成的事和可选卡点。
 3. 系统把表单内容保存到 `entries`，把可选微信及联系授权单独保存到 `entry_contacts`，并生成 `MENU-...` 今日特调链接。
 4. 访客在 `/share/MENU-...` 查看今日特调、关键词与完成提示，向工作人员出示该页领取现场奖励。
@@ -51,18 +51,35 @@ npm ci
 20260720000000_redemption.sql
 20260720010000_tavern_adventure.sql
 20260720020000_tavern_guide.sql
+20260722010000_tavern_park_partners.sql
+20260722020000_partner_map_pins.sql
 ```
 
-最后两条迁移会创建或更新 `tavern-park`、`tavern-promise` 与 `tavern-guide` 三个现场模板。
+后四条迁移会创建或更新 `tavern-park`、`tavern-promise` 与 `tavern-guide` 三个现场模板，并建立 `adventure_partners`、`partner_media`、地图点位及公开媒体 bucket。
 
-### 2. 开启认证方式
+### 2. 管理联名伙伴卡片
+
+打开 Supabase **Table Editor → adventure_partners**。卡片的六个展示字段全部来自这张表：
+
+| 页面内容 | 数据库字段 |
+| --- | --- |
+| 项目名称 | `name` |
+| 项目简介 | `intro` |
+| 关键词 | `keyword` |
+| 现场任务 | `task` |
+| 完成奖励 | `reward` |
+| 官网或二维码地址 | `website` |
+
+使用 `sort_order` 调整卡片顺序，使用 `is_active` 上下架，使用 `campaign` 区分活动。Advanced 页通过 `/api/adventure-partners` 动态读取数据，伙伴内容未写死在前端；修改后最多约 60 秒生效。Logo、二维码和展位图可继续维护在 `partner_media` 与 `partner-assets` bucket 中。
+
+### 3. 开启认证方式
 
 在 **Authentication → Providers** 中启用：
 
 - Anonymous Sign-Ins：现场游客提交游园与承诺时需要。
 - Email：如需使用注册/登录页时启用。
 
-### 3. 配置信息收集服务
+### 4. 配置信息收集服务
 
 ```bash
 cd data-collection
@@ -84,7 +101,7 @@ NEXT_PUBLIC_TAVERN_CONTACT=请在展位添加微信
 
 `SUPABASE_SERVICE_ROLE_KEY` 只用于服务端核销逻辑，绝不能提交到 Git。
 
-### 4. 配置酒馆服务
+### 5. 配置酒馆服务
 
 ```bash
 cd tavern
@@ -143,7 +160,7 @@ npm run dev
 - 自定义入口：`https://zhongzhongforever.net`（已加入 Vercel，需在域名 DNS 控制台完成 A 记录验证）
 - 信息收集内部项目：`https://jiuguan-collect.vercel.app`
 
-访客从统一入口访问酒馆。`tavern/vercel.json` 会把统一域名下的 `/collect/*`、`/share/*`、`/staff/*`、`/auth/*` 与 `/_next/*` 转发到信息收集项目，因此浏览器地址不会切换到第二个域名。工作人员使用 `https://lbasei-jiuguan.vercel.app/staff/redeem`。
+访客从统一入口访问酒馆。`tavern/vercel.json` 会把统一域名下的 `/api/adventure-partners`、`/collect/*`、`/share/*`、`/staff/*`、`/auth/*` 与 `/_next/*` 转发到信息收集项目，因此浏览器地址不会切换到第二个域名。工作人员使用 `https://lbasei-jiuguan.vercel.app/staff/redeem`。
 
 酒馆项目的生产环境变量 `VITE_COLLECT_BASE_URL` 与 `VITE_TAVERN_BASE_URL` 都设置为 `same-origin`，因此 Vercel 默认域名和自定义域名会自动保持当前来源；信息收集项目保存 Supabase、核销口令与公开展示文案。服务端密钥只配置在 Vercel 环境变量中，不进入仓库。
 

@@ -6,7 +6,7 @@
 2. 访客填写身份、当前状态、今天想做的事和可选卡点；内容写入 `entries`，可选微信与联系授权写入 `entry_contacts`。
 3. 浏览器使用当前匿名会话创建一个 `generated_pages` 记录，`share_slug` 为 `MENU-...` 的今日特调现场凭证。
 4. `/share/[shareSlug]` 显示今日特调、身份、目标、卡点和关键词；访客可向工作人员出示该页领取现场奖励。
-5. 引导页的“进入联名游园”打开 `/collect/tavern-park`，记录选择的摊位、角色或地点。
+5. Advanced 页先从 `/api/adventure-partners` 读取联名伙伴卡片，再由“进入联名游园”打开 `/collect/tavern-park`。
 6. 游园页将选择暂存于当前浏览器，并进入 `/collect/tavern-promise`。承诺池写入承诺、期限、重要程度和投入时间后，生成 `ADV-...` 创始体验码，可在 `/staff/redeem` 完成一次性核销。
 
 ## AdventureX 今日特调规则
@@ -16,9 +16,17 @@
 - 匹配顺序为：卡点关键词、身份与状态组合、是否存在卡点、状态兜底、默认内容。
 - 桂花是固定现场主持人；生成结果同时记录 `rule_id`、`content_key` 与 `content_version`，便于后续分析和更新文案。
 
+## 联名伙伴卡片
+
+- 数据源为 Supabase 的 `adventure_partners`，由 `20260722010000_tavern_park_partners.sql` 创建；不要再建立平行的 sponsor 表。
+- 六个展示字段对应 `name`（项目名称）、`intro`（简介）、`keyword`（关键词）、`task`（任务）、`reward`（奖励）和 `website`（官网或二维码地址）。
+- `/api/adventure-partners?campaign=adventurex-2026` 仅返回当前活动中启用的伙伴，并按 `sort_order` 排序。酒馆前端不保存任何伙伴内容。
+- 日常维护在 Supabase **Table Editor → adventure_partners** 完成。修改 `sort_order` 可排序，设置 `is_active = false` 可下架；API 最长约 60 秒后反映更新。
+- `partner_media` 和 `partner-assets` bucket 用于后续 Logo、二维码及展位图片，不属于这六个文本字段。
+
 ## 上线前配置
 
-1. 在 Supabase SQL Editor 按顺序执行既有 migrations，再执行 `20260720010000_tavern_adventure.sql` 与 `20260720020000_tavern_guide.sql`。
+1. 在 Supabase SQL Editor 按顺序执行既有 migrations，再执行 `20260720010000_tavern_adventure.sql`、`20260720020000_tavern_guide.sql`、`20260722010000_tavern_park_partners.sql` 与 `20260722020000_partner_map_pins.sql`。
 2. 在 Supabase Authentication 启用 Anonymous Sign-Ins；现场采集通过匿名会话受 RLS 保护。
 3. 设置 data-collection 的 `NEXT_PUBLIC_TAVERN_ACCOUNT` 和 `NEXT_PUBLIC_TAVERN_CONTACT`，这两个值会公开显示在每一张小卡上。
 4. 设置 jiuguan 的 `VITE_COLLECT_BASE_URL` 与 `VITE_TAVERN_BASE_URL` 为生产 URL。酒馆会把 `return_to` 参数传给信息收集系统，凭证页可回到酒馆。

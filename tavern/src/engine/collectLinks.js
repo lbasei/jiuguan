@@ -79,3 +79,9 @@ export function getAdventureActions(env = {}) {
 export function getTavernGuideUrl(env = {}) {
   return buildCollectUrl('tavern-guide', { source: 'booth' }, env)
 }
+
+export function getAdventurePartnersUrl(env = {}) {
+  const cfg = resolveCollectConfig(env)
+  const params = new URLSearchParams({ campaign: cfg.campaign })
+  return `${cfg.collectBaseUrl}/api/adventure-partners?${params.toString()}`
+}
