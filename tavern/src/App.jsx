@@ -5,6 +5,7 @@ import { recordEvent } from './engine/cellarApi.js'
 import LoginPage from './pages/LoginPage.jsx'
 import IntroPage from './pages/IntroPage.jsx'
 import AdventurePage from './pages/AdventurePage.jsx'
+import PartnerWallPage from './pages/PartnerWallPage.jsx'
 import GuidePage from './pages/GuidePage.jsx'
 import GuestProfilePage from './pages/GuestProfilePage.jsx'
 import BartenderPage from './pages/BartenderPage.jsx'
@@ -536,8 +537,14 @@ export default function App() {
   }
   // Adventure 展会入口：不强制登录，直接深链到 collection。
   if (introStage === 'adventure') {
-    return <AdventurePage onBack={() => setIntroStage('intro')} />
+    return (
+      <AdventurePage
+        onBack={() => setIntroStage('intro')}
+        onOpenPartnerWall={() => setIntroStage('partner-wall')}
+      />
+    )
   }
+  if (introStage === 'partner-wall') return <PartnerWallPage onBack={() => setIntroStage('adventure')} />
   if (introStage === 'login') return <LoginPage onAuthenticated={() => setIntroStage('guest')} />
   if (!state.authToken || !state.authUser) return <LoginPage onAuthenticated={() => setIntroStage('intro')} />
   if (introStage === 'guest') return <GuestProfilePage onStart={() => startIntro(pendingStartMode, true)} />

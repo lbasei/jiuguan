@@ -6,7 +6,7 @@
 2. 访客填写身份、当前状态、今天想做的事和可选卡点；内容写入 `entries`，可选微信与联系授权写入 `entry_contacts`。
 3. 浏览器使用当前匿名会话创建一个 `generated_pages` 记录，`share_slug` 为 `MENU-...` 的今日特调现场凭证。
 4. `/share/[shareSlug]` 显示今日特调、身份、目标、卡点和关键词；访客可向工作人员出示该页领取现场奖励。
-5. Advanced 页先从 `/api/adventure-partners` 读取联名伙伴卡片，再由“进入联名游园”打开 `/collect/tavern-park`。
+5. Advanced 页提供独立的伙伴信息墙入口；进入信息墙后从 `/api/adventure-partners` 读取卡片。“进入联名游园”仍打开 `/collect/tavern-park`。
 6. 游园页将选择暂存于当前浏览器，并进入 `/collect/tavern-promise`。承诺池写入承诺、期限、重要程度和投入时间后，生成 `ADV-...` 创始体验码，可在 `/staff/redeem` 完成一次性核销。
 
 ## AdventureX 今日特调规则
