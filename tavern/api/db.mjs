@@ -117,7 +117,9 @@ function devLoginCode() {
 }
 
 function canUseDevLoginCode() {
-  return process.env.NODE_ENV !== 'production' && !process.env.VERCEL
+  // No SMS yet: allow fixed 123456 on local and Vercel.
+  // Once hasSmsProvider() is true, send-code / login use real SMS instead.
+  return true
 }
 
 function randomInviteCode(theme = 'zhongzhong') {
@@ -541,13 +543,26 @@ function startPetProcess() {
   if (petProcess && !petProcess.killed) {
     return { started: false, alreadyRunning: true }
   }
-  petProcess = spawn('npm', ['run', 'pet'], {
-    cwd: process.cwd(),
-    detached: true,
-    stdio: 'ignore',
-  })
-  petProcess.unref()
-  return { started: true, alreadyRunning: false }
+  try {
+    // Prefer npm.cmd on Windows so PATH resolution matches shell usage.
+    const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+    petProcess = spawn(npmBin, ['run', 'pet'], {
+      cwd: process.cwd(),
+      detached: true,
+      stdio: 'ignore',
+      shell: process.platform === 'win32',
+    })
+    petProcess.on('error', (err) => {
+      console.warn('[pet] failed to spawn desktop pet:', err.message)
+      petProcess = null
+    })
+    petProcess.unref()
+    return { started: true, alreadyRunning: false }
+  } catch (err) {
+    console.warn('[pet] failed to start desktop pet:', err.message)
+    petProcess = null
+    return { started: false, alreadyRunning: false, error: err.message }
+  }
 }
 
 export async function handleApiRequest(req, res) {

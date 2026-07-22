@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { resolveTodaySpecial } from "@/lib/collection/today-special-engine";
 
+/** Legacy map stops kept for older vouchers; park UI selects DB partners. */
 export const ADVENTURE_PARK_STOPS = [
   {
     id: "co-brand-booth",

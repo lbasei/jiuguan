@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useStore } from '../store/store.jsx'
 import { getBartender } from '../data/bartenders.js'
 import PixelSprite from '../components/PixelSprite.jsx'
+import SequenceSprite, { shouldPlayHeshui } from '../components/SequenceSprite.jsx'
 import { CREATURE } from '../components/sprites.js'
 import { BODY } from './BartenderPage.jsx'
 import { onPetStatus, startPetSync, stopPetSync, pushPetState, onPetAction } from '../engine/petBridge.js'
@@ -332,7 +333,14 @@ export default function ExecutePage() {
           <div className="now">正在调配</div>
           <div className="task">{active.title}</div>
           <div className="brew-sprite">
-            {bartender.image ? (
+            {shouldPlayHeshui(active.taskType, selectedBartenderId) ? (
+              <SequenceSprite
+                characterId={selectedBartenderId}
+                className="brew-pet-img"
+                alt={bartender.name}
+                fallbackSrc={bartender.image || ''}
+              />
+            ) : bartender.image ? (
               <img className="brew-pet-img sprite-shake" src={bartender.image} alt={bartender.name} />
             ) : (
               <PixelSprite sprite={CREATURE} scale={8} colors={{ b: BODY[selectedBartenderId] }} className="sprite-shake" />
