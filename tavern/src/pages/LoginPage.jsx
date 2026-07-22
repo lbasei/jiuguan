@@ -1,78 +1,47 @@
 import { useState } from 'react'
-import { loginWithPhoneCode, sendLoginCode } from '../engine/cellarApi.js'
+import { loginWithEmailPassword } from '../engine/cellarApi.js'
 import { useStore } from '../store/store.jsx'
 
-function normalizePhoneInput(value) {
-  return value.replace(/[^\d+]/g, '').slice(0, 20)
+function normalizeEmailInput(value) {
+  return value.trim().slice(0, 254)
 }
 
 export default function LoginPage({ onAuthenticated }) {
   const { dispatch } = useStore()
-  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [inviteCode, setInviteCode] = useState('')
-  const [code, setCode] = useState('')
-  const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
-  const [devCode, setDevCode] = useState('')
 
-  const canSend = normalizePhoneInput(phone).replace(/\D/g, '').length >= 8 && inviteCode.trim().length >= 4
-  const canLogin = canSend && code.trim().length >= 4
-
-  async function requestCode() {
-    if (loading) return
-    if (!canSend) {
-      setMessage('先填手机号和酒馆请柬码，再取验证码。')
-      return
-    }
-    setLoading(true)
-    setMessage('')
-    setDevCode('')
-    try {
-      const data = await sendLoginCode({
-        phone: normalizePhoneInput(phone),
-        inviteCode: inviteCode.trim().toUpperCase(),
-      })
-      setSent(true)
-      setDevCode(data.devCode || '')
-      if (data.devCode) {
-        setCode(data.devCode)
-        setMessage(`测试验证码：${data.devCode}，已自动填入。`)
-      } else {
-        setMessage(data.provider === 'dev-console' ? '测试验证码已生成。' : '验证码已送到手机。')
-      }
-    } catch (error) {
-      const detail = error?.data?.detail || error?.data?.message || error?.data?.error
-      if (error?.message === 'Failed to fetch') {
-        setMessage('现在不是网页入口。请打开 http://127.0.0.1:5173/ 或线上站点再取号。')
-      } else {
-        const status = error?.status ? `(${error.status})` : ''
-        setMessage(detail ? `验证码没有送到${status}：${detail}` : (error?.message || '验证码没有送到。'))
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
+  const canLogin =
+    normalizeEmailInput(email).includes('@') &&
+    password.trim().length >= 6 &&
+    inviteCode.trim().length >= 4
 
   async function login() {
     if (loading) return
     if (!canLogin) {
-      setMessage('请输入手机号、邀请码和 6 位验证码。')
+      setMessage('请填写邮箱、至少 6 位密码，以及酒馆请柬码。')
       return
     }
     setLoading(true)
     setMessage('')
     try {
-      const data = await loginWithPhoneCode({
-        phone: normalizePhoneInput(phone),
-        code: code.trim(),
+      const data = await loginWithEmailPassword({
+        email: normalizeEmailInput(email).toLowerCase(),
+        password,
         inviteCode: inviteCode.trim().toUpperCase(),
       })
       dispatch({ type: 'SET_AUTH', token: data.token, user: data.user })
       onAuthenticated?.()
     } catch (error) {
       const detail = error?.data?.message || error?.data?.error || error?.message
-      setMessage(detail ? `入座失败：${detail}` : '验证码不对，或者已经过期了。')
+      if (error?.message === 'Failed to fetch') {
+        setMessage('现在不是网页入口。请打开 http://127.0.0.1:5173/ 或线上站点再入座。')
+      } else {
+        setMessage(detail ? `入座失败：${detail}` : '邮箱或密码不对，请再试一次。')
+      }
     } finally {
       setLoading(false)
     }
@@ -91,12 +60,24 @@ export default function LoginPage({ onAuthenticated }) {
         </div>
 
         <label className="login-field">
-          <span>手机号</span>
+          <span>邮箱</span>
           <input
-            inputMode="tel"
-            value={phone}
-            onChange={(event) => setPhone(normalizePhoneInput(event.target.value))}
-            placeholder="手机"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="you@example.com"
+          />
+        </label>
+
+        <label className="login-field">
+          <span>密码</span>
+          <input
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="至少 6 位"
           />
         </label>
 
@@ -109,23 +90,10 @@ export default function LoginPage({ onAuthenticated }) {
           />
         </label>
 
-        <label className="login-field code-field">
-          <span>验证码</span>
-          <div>
-            <input
-              inputMode="numeric"
-              value={code}
-              onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
-              placeholder={sent ? '验证码' : '取验证码'}
-            />
-            <button type="button" onClick={requestCode} disabled={loading}>
-              {sent ? '再取' : '取号'}
-            </button>
-          </div>
-        </label>
-
-        {message && <div className={`login-message ${devCode ? 'dev' : ''}`}>{message}</div>}
-        <div className="login-hint">默认内测码：ZHONGZHONG。掌柜可生成薄荷、姜、柠檬等种种主题请柬；未接短信服务时，测试验证码固定为 123456。</div>
+        {message && <div className="login-message">{message}</div>}
+        <div className="login-hint">
+          默认内测码：ZHONGZHONG。首次入座会用该邮箱自动开户；之后同一邮箱密码即可再次入座。
+        </div>
 
         <button className="login-submit" type="button" onClick={login} disabled={loading}>
           {loading ? '核验中' : '入座'}

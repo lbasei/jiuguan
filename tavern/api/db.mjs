@@ -97,6 +97,156 @@ function validatePhone(phone = '') {
   return digits.length >= 8 && digits.length <= 15
 }
 
+function normalizeEmail(email = '') {
+  return String(email || '').trim().toLowerCase().slice(0, 254)
+}
+
+function validateEmail(email = '') {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(email))
+}
+
+function validatePassword(password = '') {
+  return String(password || '').length >= 6
+}
+
+function getSupabaseConfig() {
+  const url = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
+    .trim()
+    .replace(/\/$/, '')
+  const anonKey = String(
+    process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+  ).trim()
+  const serviceKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
+  return { url, anonKey, serviceKey }
+}
+
+function hasSupabaseAuth() {
+  const { url, anonKey } = getSupabaseConfig()
+  return Boolean(url && anonKey)
+}
+
+async function supabasePasswordGrant(email, password) {
+  const { url, anonKey } = getSupabaseConfig()
+  const response = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok || !data.access_token) {
+    return {
+      ok: false,
+      status: response.status,
+      data,
+      message: data.error_description || data.msg || data.error || '登录失败',
+    }
+  }
+  return {
+    ok: true,
+    userId: data.user?.id,
+    email: data.user?.email || email,
+    data,
+  }
+}
+
+async function supabaseAdminCreateUser(email, password) {
+  const { url, serviceKey } = getSupabaseConfig()
+  if (!serviceKey) return { ok: false, missingServiceKey: true, data: {} }
+  const response = await fetch(`${url}/auth/v1/admin/users`, {
+    method: 'POST',
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      email,
+      password,
+      email_confirm: true,
+    }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    return { ok: false, status: response.status, data }
+  }
+  return { ok: true, userId: data.id || data.user?.id, data }
+}
+
+async function supabasePasswordAuth(email, password) {
+  if (!hasSupabaseAuth()) {
+    return {
+      ok: false,
+      error: 'supabase_not_configured',
+      message: '邮箱登录未配置，请联系掌柜。',
+    }
+  }
+
+  const signedIn = await supabasePasswordGrant(email, password)
+  if (signedIn.ok) {
+    return { ok: true, created: false, userId: signedIn.userId, email: signedIn.email }
+  }
+
+  const created = await supabaseAdminCreateUser(email, password)
+  if (created.ok) {
+    const again = await supabasePasswordGrant(email, password)
+    if (again.ok) {
+      return { ok: true, created: true, userId: again.userId || created.userId, email: again.email }
+    }
+  }
+
+  const blob = JSON.stringify(created.data || {}) + JSON.stringify(signedIn.data || '')
+  if (created.missingServiceKey) {
+    const { url, anonKey } = getSupabaseConfig()
+    const signUpRes = await fetch(`${url}/auth/v1/signup`, {
+      method: 'POST',
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    })
+    const signUpData = await signUpRes.json().catch(() => ({}))
+    if (signUpRes.ok && signUpData.access_token) {
+      return {
+        ok: true,
+        created: true,
+        userId: signUpData.user?.id,
+        email: signUpData.user?.email || email,
+      }
+    }
+    if (/already|registered|exists/i.test(JSON.stringify(signUpData))) {
+      return { ok: false, error: 'auth_invalid', message: '邮箱或密码不对。' }
+    }
+    if (signUpRes.ok && signUpData.user && !signUpData.access_token) {
+      return {
+        ok: false,
+        error: 'email_confirm_required',
+        message: '请先到邮箱点确认链接，或在 Supabase 关闭 Confirm email。',
+      }
+    }
+    return {
+      ok: false,
+      error: 'auth_failed',
+      message: signUpData.msg || signUpData.error_description || '注册失败。',
+    }
+  }
+
+  if (/already|registered|exists|duplicate/i.test(blob)) {
+    return { ok: false, error: 'auth_invalid', message: '邮箱或密码不对。' }
+  }
+
+  return {
+    ok: false,
+    error: 'auth_failed',
+    message: created.data?.msg || signedIn.message || '登录失败。',
+  }
+}
+
 function hashCode(code = '') {
   return createHash('sha256').update(String(code)).digest('hex')
 }
@@ -160,6 +310,10 @@ function sha256(value) {
 }
 
 function publicUser(user = {}) {
+  const email = normalizeEmail(user.email)
+  const maskedEmail = email
+    ? email.replace(/^(.).*(@.*)$/, (_, a, b) => `${a}***${b}`)
+    : ''
   return {
     id: user.id,
     name: user.name,
@@ -168,6 +322,7 @@ function publicUser(user = {}) {
     locationLabel: user.locationLabel || '远方',
     coords: user.coords || null,
     phone: user.phone ? user.phone.replace(/(\d{3})\d+(\d{2})$/, '$1****$2') : '',
+    email: maskedEmail,
     inviteCode: user.inviteCode || '',
     updatedAt: user.updatedAt,
   }
@@ -203,7 +358,9 @@ async function readBody(req) {
 
 function normalizeUser(input = {}) {
   const id = input.id || createId('guest')
-  const name = String(input.name || input.displayName || '').trim().slice(0, 24) || '无名旅人'
+  const email = normalizeEmail(input.email)
+  const fallbackName = email ? email.split('@')[0].slice(0, 24) : '无名旅人'
+  const name = String(input.name || input.displayName || '').trim().slice(0, 24) || fallbackName
   const gender = ['male', 'female', 'neutral'].includes(input.gender) ? input.gender : 'neutral'
   const locationLabel = String(input.locationLabel || input.locationName || '').trim().slice(0, 36) || '远方'
   return {
@@ -214,6 +371,7 @@ function normalizeUser(input = {}) {
     locationLabel,
     coords: input.coords || null,
     phone: input.phone || '',
+    email,
     inviteCode: input.inviteCode || '',
     updatedAt: new Date().toISOString(),
   }
@@ -342,6 +500,12 @@ async function sendTencentSmsCode(phone, code) {
 
 function findUserByPhone(db, phone) {
   return Object.values(db.users || {}).find((user) => user.phone === phone)
+}
+
+function findUserByEmail(db, email) {
+  const normalized = normalizeEmail(email)
+  if (!normalized) return null
+  return Object.values(db.users || {}).find((user) => normalizeEmail(user.email) === normalized)
 }
 
 function publicDrink(drink) {
@@ -670,43 +834,41 @@ export async function handleApiRequest(req, res) {
 
     if (req.method === 'POST' && url.pathname === '/api/auth/login') {
       const body = await readBody(req)
-      const phone = normalizePhone(body.phone)
-      const code = String(body.code || '').trim()
+      const email = normalizeEmail(body.email)
+      const password = String(body.password || '')
       const db = await readDb()
       const inviteCheck = ensureInvite(db, body.inviteCode)
-      const savedCode = db.verificationCodes[phone]
-      if (!validatePhone(phone)) {
-        sendJson(res, 400, { error: 'phone_invalid', message: '手机号不太对。' })
+
+      if (!validateEmail(email)) {
+        sendJson(res, 400, { error: 'email_invalid', message: '邮箱不太对。' })
+        return true
+      }
+      if (!validatePassword(password)) {
+        sendJson(res, 400, { error: 'password_invalid', message: '密码至少 6 位。' })
         return true
       }
       if (!inviteCheck.ok) {
         sendJson(res, 403, { error: inviteCheck.error, message: '邀请码不对。' })
         return true
       }
-      if (!savedCode || savedCode.expiresAt < Date.now()) {
-        const canUseDevCode = canUseDevLoginCode() && !hasSmsProvider() && code === devLoginCode(phone)
-        if (!canUseDevCode) {
-          sendJson(res, 400, { error: 'code_expired', message: '验证码过期了，再要一杯新的。' })
-          return true
-        }
-      }
-      if (savedCode && (savedCode.attempts >= 5 || savedCode.codeHash !== hashCode(code))) {
-        savedCode.attempts = Number(savedCode.attempts || 0) + 1
-        await writeDb(db)
-        sendJson(res, 400, { error: 'code_invalid', message: '验证码不对。' })
+
+      const auth = await supabasePasswordAuth(email, password)
+      if (!auth.ok) {
+        const status = auth.error === 'supabase_not_configured' ? 503 : 401
+        sendJson(res, status, { error: auth.error || 'auth_failed', message: auth.message || '登录失败。' })
         return true
       }
-      const existing = findUserByPhone(db, phone)
+
+      const existing = findUserByEmail(db, email) || (auth.userId ? db.users[auth.userId] : null)
       const user = normalizeUser({
         ...(existing || {}),
         ...(body.profile || {}),
-        id: existing?.id || createId('user'),
-        phone,
+        id: existing?.id || auth.userId || createId('user'),
+        email,
         inviteCode: inviteCheck.code,
       })
       db.users[user.id] = { ...(db.users[user.id] || {}), ...user }
       markInviteUsed(db, inviteCheck.code, user.id)
-      delete db.verificationCodes[phone]
       const token = createId('session')
       db.sessions[token] = {
         token,
@@ -715,7 +877,11 @@ export async function handleApiRequest(req, res) {
         expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30,
       }
       await writeDb(db)
-      sendJson(res, 200, { token, user: publicUser(user) })
+      sendJson(res, 200, {
+        token,
+        user: publicUser(user),
+        created: Boolean(auth.created),
+      })
       return true
     }
 
