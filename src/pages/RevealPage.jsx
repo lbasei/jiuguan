@@ -273,7 +273,8 @@ export default function RevealPage() {
     setSyncingCellar(true)
     setCellarMessage('正在放进公共冰柜...')
     try {
-      await publishDrink(card, state.userProfile)
+      const result = await publishDrink(card, state.userProfile)
+      if (result?.habit) dispatch({ type: 'SET_USER_HABITS', habits: result.habit })
       const drinks = await fetchPublicCellar()
       setPublicCellar(drinks)
       setCellarMessage('已放进冰柜，别人也能看见这份出品。')

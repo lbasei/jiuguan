@@ -5,9 +5,12 @@ import { createContext, useContext, useReducer, useEffect } from 'react'
 import { getBartender } from '../data/bartenders.js'
 import { extractIngredients, aggregateRecipe } from '../engine/extract.js'
 import { orderTodos, nameDrink, judgeRecipe, adviseManagement } from '../engine/plan.js'
+import { applyRhythmToOrder, buildRhythmAdvisoryTips } from '../engine/rhythm.js'
 import { applyExperience } from '../engine/evolve.js'
 import { EVOMAP_EXPERIENCES } from '../data/evomap.js'
 import { buildReviewCard } from '../engine/review.js'
+import { fetchUserHabits } from '../engine/cellarApi.js'
+import { setApiAuthToken } from '../engine/apiClient.js'
 
 const STORAGE_KEY = 'life-kitchen-v2'
 const StoreCtx = createContext(null)
@@ -74,6 +77,7 @@ const initial = {
   reviewCard: null,
   cellar: [], // 本地冰柜：保存生成过的今日出品报告
   userProfile: null,
+  userHabits: null,
   authToken: '',
   authUser: null,
   today: new Date().toISOString().slice(0, 10),
@@ -89,12 +93,22 @@ function recompute(state) {
   const keptManualOrder = state.manualSorted && state.order.length === state.todos.length
     ? state.order.map((todo) => todosById.get(todo.id)).filter(Boolean)
     : null
-  const order = keptManualOrder?.length === state.todos.length
+  let order = keptManualOrder?.length === state.todos.length
     ? keptManualOrder
     : orderTodos(state.todos, state.strategy)
+  if (!keptManualOrder && state.userHabits?.rhythmProfile) {
+    order = applyRhythmToOrder(state.todos, order, state.userHabits.rhythmProfile)
+  }
   const drinkName = nameDrink(recipe, { bartender, mode: state.assistantMode, todos: state.todos, date: state.today })
   const judge = judgeRecipe(recipe, bartender)
   const advice = adviseManagement(state.todos, bartender)
+  if (state.userHabits?.rhythmProfile) {
+    const rhythmTips = buildRhythmAdvisoryTips(state.userHabits.rhythmProfile, state.userHabits.stats || {})
+    if (rhythmTips.length) {
+      advice.tips = [...rhythmTips, ...advice.tips].slice(0, 3)
+      advice.comment = `${bartender.name} 为你写下今日酒单：${advice.tips[0]}`
+    }
+  }
   return { ...state, ingredients, recipe, order, drinkName, judge, advice }
 }
 
@@ -141,6 +155,9 @@ function reducer(state, action) {
 
     case 'SET_USER_PROFILE':
       return { ...state, userProfile: normalizeProfile({ ...(state.userProfile || {}), ...(action.profile || {}) }) }
+
+    case 'SET_USER_HABITS':
+      return recompute({ ...state, userHabits: action.habits || null })
 
     case 'SET_AUTH': {
       const authUser = action.user ? normalizeProfile(action.user) : null
@@ -307,6 +324,7 @@ function reducer(state, action) {
         lockedBartenderId: state.lockedBartenderId,
         cellar: state.cellar,
         userProfile: state.userProfile,
+        userHabits: state.userHabits,
         authToken: state.authToken,
         authUser: state.authUser,
         customBartenders: state.customBartenders,
@@ -335,10 +353,22 @@ function load() {
 export function StoreProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, undefined, load)
   useEffect(() => {
+    setApiAuthToken(state.authToken)
+  }, [state.authToken])
+  useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
     } catch {}
   }, [state])
+  useEffect(() => {
+    const userId = state.userProfile?.id
+    if (!userId || !state.authToken) return
+    fetchUserHabits(userId)
+      .then((habit) => {
+        if (habit) dispatch({ type: 'SET_USER_HABITS', habits: habit })
+      })
+      .catch(() => {})
+  }, [state.userProfile?.id, state.authToken])
   return <StoreCtx.Provider value={{ state, dispatch }}>{children}</StoreCtx.Provider>
 }
 

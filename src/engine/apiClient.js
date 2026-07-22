@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 
 const rawApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || '').trim()
+let apiAuthToken = ''
 
 function trimTrailingSlash(value) {
   return value.replace(/\/+$/, '')
@@ -22,8 +23,8 @@ export function getApiBaseUrl() {
   }
 }
 
-export function hasApiProxy() {
-  return Boolean(getApiBaseUrl()) || import.meta.env.DEV
+export function setApiAuthToken(token) {
+  apiAuthToken = String(token || '').trim()
 }
 
 export function apiUrl(path) {
@@ -39,5 +40,11 @@ export function apiUrl(path) {
 }
 
 export function apiFetch(path, options) {
-  return Promise.resolve().then(() => fetch(apiUrl(path), options))
+  return Promise.resolve().then(() => {
+    const headers = new Headers(options?.headers || {})
+    if (apiAuthToken && path.startsWith('/api/') && !headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${apiAuthToken}`)
+    }
+    return fetch(apiUrl(path), { ...options, headers })
+  })
 }

@@ -52,12 +52,12 @@
             │ GET /state {actions}         │ IPC pet-send-action
             │ (每 2.5s 轮询)               │ 点击原料 → 完成动作
             └──────────────────────────────┘
-            │ POST /chat/completions (经 Vite dev proxy /deepseek)
+            │ POST /api/llm/* (Gemini key 仅服务端)
             ▼
    ┌────────────────────┐
-   │ DeepSeek V4 Flash  │   仅用于:
-   │ deepseek-v4-flash  │   - 自然语言 → 结构化待办
-   │ OpenAI 兼容        │   - 自然语言 → 推荐小精灵(可选,第一页已改为轮播)
+   │ Gemini API         │   仅用于:
+   │ (via /api/llm)     │   - 自然语言 → 结构化待办
+   │                    │   - 自然语言 → 推荐小精灵
    └────────────────────┘
 ```
 
@@ -76,7 +76,7 @@
 | 模块 | 职责 | 关键函数 |
 |---|---|---|
 | `parse.js` | 规则版自然语言 → Todo(LLM 兜底) | `parseTodos(text)` |
-| `llm.js` | LLM 入口,OpenAI 兼容 + 规则兜底 | `parseTodosSmart` / `suggestBartenderSmart` / `llmEnabled` |
+| `llm.js` | LLM 入口,经后端调 Gemini + 规则兜底 | `parseTodosSmart` / `suggestBartenderSmart` / `llmEnabled` |
 | `extract.js` | 待办 → 原料 + 比例聚合 | `extractIngredients` / `aggregateRecipe` |
 | `plan.js` | 排序策略 + Agent 判断 + 今日特调命名 | `orderTodos` / `nameDrink` / `judgeRecipe` / `adviseManagement` |
 | `evolve.js` | EvoMap 经验匹配与吸收 | `matchExperiences` / `applyExperience` |
