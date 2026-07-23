@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { saveUserProfile } from '../engine/cellarApi.js'
+import { saveUserProfile, fetchUserHabits } from '../engine/cellarApi.js'
 import { useStore } from '../store/store.jsx'
 
 const PROFILE_TAGS = {
@@ -101,7 +101,12 @@ export default function GuestProfilePage({ onStart }) {
       locationLabel: profile.locationLabel.trim() || '远方',
     }
     dispatch({ type: 'SET_USER_PROFILE', profile: nextProfile })
-    saveUserProfile(nextProfile).catch(() => {})
+    saveUserProfile(nextProfile)
+      .then(() => fetchUserHabits(nextProfile.id))
+      .then((habit) => {
+        if (habit) dispatch({ type: 'SET_USER_HABITS', habits: habit })
+      })
+      .catch(() => {})
     onStart()
   }
 

@@ -9442,6 +9442,17 @@ label.field { display: block; font-size: 16px; color: var(--muted); margin: 8px 
   border: 2px solid rgba(36,68,92,.26);
   box-shadow: 5px 6px 0 rgba(36,68,92,.12);
 }
+.helper-pick-panel {
+  background:
+    linear-gradient(90deg, rgba(36,68,92,.05) 1px, transparent 1px) 0 0 / 18px 18px,
+    linear-gradient(rgba(36,68,92,.04) 1px, transparent 1px) 0 0 / 18px 18px,
+    #F3FBFF;
+}
+.helper-pick-note {
+  max-width: min(540px, calc(100% - 32px));
+  margin-left: auto;
+  margin-right: auto;
+}
 .custom-pet-copy {
   display: grid;
   gap: 4px;

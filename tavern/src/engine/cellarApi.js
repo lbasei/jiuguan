@@ -1,5 +1,7 @@
+import { apiFetch } from './apiClient.js'
+
 async function request(path, options = {}) {
-  const res = await fetch(path, {
+  const res = await apiFetch(path, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -25,13 +27,50 @@ export async function saveUserProfile(user) {
   return data.user
 }
 
+export async function fetchUserHabits(userId) {
+  if (!userId) return null
+  const data = await request(`/api/habits?userId=${encodeURIComponent(userId)}`)
+  return data.habit
+}
+
+export async function saveReviewMemory(card, user, profile = {}) {
+  if (!card || !user?.id) return null
+  const data = await request('/api/memories', {
+    method: 'POST',
+    body: JSON.stringify({ card, user, profile }),
+  })
+  return data
+}
+
+export async function fetchUserMemories(userId, limit = 30) {
+  if (!userId) return []
+  const data = await request(`/api/memories?userId=${encodeURIComponent(userId)}&limit=${limit}`)
+  return data.memories || []
+}
+
+export async function clearUserMemories(userId) {
+  if (!userId) return null
+  const data = await request(`/api/habits?userId=${encodeURIComponent(userId)}`, {
+    method: 'DELETE',
+  })
+  return data
+}
+
 export async function publishDrink(card, user) {
   if (!card) return null
   const data = await request('/api/cellar', {
     method: 'POST',
-    body: JSON.stringify({ card, user }),
+    body: JSON.stringify({
+      card,
+      user,
+      profile: {
+        habitSummary: user?.habitSummary,
+        preferences: user?.preferences,
+        avoidances: user?.avoidances,
+      },
+    }),
   })
-  return data.drink
+  return data
 }
 
 export async function fetchPublicCellar() {

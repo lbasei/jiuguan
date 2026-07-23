@@ -8,6 +8,8 @@ import { CREATURE } from '../components/sprites.js'
 import { ensurePetState, pushPetState } from '../engine/petBridge.js'
 import { generateCustomPetImage } from '../engine/imageGen.js'
 import { requestSeedanceMotion } from '../engine/seedance.js'
+import { suggestBartenderSmart } from '../engine/llm.js'
+import { chooseBartenderFromMood, listAvailableBartenders } from '../engine/chooseBartender.js'
 
 export const BODY = {
   rosemary: '#6F8A5B',
@@ -75,7 +77,7 @@ const BASE_METHOD_SLOTS = [
     name: '帮我选种种',
     style: '选择困难时用',
     fit: '不知道今天适合哪种管理方法的时候',
-    blurb: '点一下，酒馆会从现有种种里替你挑一位今日调酒师。',
+    blurb: '说一句今天想怎么被管，酒馆会帮你挑一只合适的种种。',
     placeholder: 'plus',
     helper: true,
   },
@@ -91,6 +93,11 @@ export default function BartenderPage() {
   const [armedId, setArmedId] = useState(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [customOpen, setCustomOpen] = useState(false)
+  const [helperOpen, setHelperOpen] = useState(false)
+  const [helperText, setHelperText] = useState('')
+  const [helperLoading, setHelperLoading] = useState(false)
+  const [helperNote, setHelperNote] = useState('')
+  const [helperError, setHelperError] = useState('')
   const [customForm, setCustomForm] = useState({
     name: '星糖种种',
     ingredient: '星糖、莓果和薄荷',
@@ -112,6 +119,7 @@ export default function BartenderPage() {
   const go = (dir) => {
     setArmedId(null)
     setCustomOpen(false)
+    setHelperOpen(false)
     setDetailsOpen(false)
     setArrowFlash(dir < 0 ? 'left' : 'right')
     clearTimeout(arrowTimer.current)
@@ -178,14 +186,46 @@ export default function BartenderPage() {
     dragX.current = null
   }
 
-  const chooseForMe = () => {
-    const available = BARTENDERS.filter((b) => !b.unlockDays || visitDays >= b.unlockDays)
-    const currentRealIndex = available.findIndex((b) => b.id === state.bartenderId)
-    const nextRealIndex = (currentRealIndex + 1 + Math.floor(Math.random() * Math.max(1, available.length - 1))) % available.length
-    const nextId = available[nextRealIndex]?.id
+  const openHelperPanel = () => {
+    setCustomOpen(false)
+    setDetailsOpen(false)
+    setArmedId(null)
+    setHelperError('')
+    setHelperOpen(true)
+  }
+
+  const applyChosenBartender = (nextId, note = '') => {
     const slotIndex = methodSlots.findIndex((b) => b.id === nextId)
     setArmedId(null)
     setIdx(slotIndex >= 0 ? slotIndex : 0)
+    setHelperNote(note || '')
+    setHelperOpen(false)
+    setHelperText('')
+    setHelperError('')
+  }
+
+  const chooseForMe = async () => {
+    if (helperLoading) return
+    setHelperLoading(true)
+    setHelperError('')
+    try {
+      const available = listAvailableBartenders(BARTENDERS, visitDays)
+      const result = await chooseBartenderFromMood({
+        text: helperText,
+        available,
+        currentId: state.bartenderId,
+        suggest: suggestBartenderSmart,
+      })
+      if (!result.id) {
+        setHelperError('暂时挑不出合适的种种，稍后再试。')
+        return
+      }
+      applyChosenBartender(result.id, result.note)
+    } catch (error) {
+      setHelperError(error.message || '推荐失败，请再试一次。')
+    } finally {
+      setHelperLoading(false)
+    }
   }
 
   const summonDesktopPet = async () => {
@@ -210,11 +250,12 @@ export default function BartenderPage() {
   const summon = () => {
     if (summoning) return
     if (cur.customCreator) {
+      setHelperOpen(false)
       setCustomOpen(true)
       return
     }
     if (cur.helper) {
-      chooseForMe()
+      openHelperPanel()
       return
     }
     if (lockedByVisit) {
@@ -239,11 +280,12 @@ export default function BartenderPage() {
   const touchHero = (event) => {
     if (summoning) return
     if (cur.customCreator) {
+      setHelperOpen(false)
       setCustomOpen(true)
       return
     }
     if (cur.helper) {
-      chooseForMe()
+      openHelperPanel()
       return
     }
     if (lockedByVisit) {
@@ -338,6 +380,7 @@ export default function BartenderPage() {
         把种种召唤到桌面
       </button>
       {petSummonNote && <div className="pet-summon-note">{petSummonNote}</div>}
+      {helperNote && !helperOpen && <div className="pet-summon-note helper-pick-note">{helperNote}</div>}
 
       <div className="picker" onPointerDown={onDown} onPointerUp={onUp}>
         <button className={`picker-arrow ${arrowFlash === 'left' ? 'flash' : ''}`} disabled={summoning} onClick={() => go(-1)} aria-label="上一只">
@@ -408,6 +451,43 @@ export default function BartenderPage() {
               {lockedByVisit ? `还差 ${cur.unlockDays - visitDays} 天` : '邀请它'}
             </button>
           </section>
+        </div>
+      )}
+
+      {helperOpen && (
+        <div className="custom-pet-panel helper-pick-panel" role="region" aria-label="帮我选种种">
+          <div className="custom-pet-copy">
+            <b>今天想怎么被管？</b>
+            <span>随便说说状态就行，比如「很累但不想被催」或「一直被消息打断」。</span>
+          </div>
+          <div className="custom-pet-form">
+            <label className="wide">
+              <span>你的状态</span>
+              <textarea
+                rows={3}
+                value={helperText}
+                maxLength={200}
+                disabled={helperLoading}
+                onChange={(event) => setHelperText(event.target.value)}
+                placeholder="例如：今天很累，但必须写完方案，不想被太凶地催。"
+              />
+            </label>
+          </div>
+          <div className="custom-pet-actions">
+            <button className="custom-generate" type="button" disabled={helperLoading} onClick={chooseForMe}>
+              {helperLoading ? '正在帮你挑' : '帮我挑一只'}
+            </button>
+            <button className="custom-cancel" type="button" disabled={helperLoading} onClick={() => setHelperOpen(false)}>
+              收起
+            </button>
+          </div>
+          {helperLoading && (
+            <div className="custom-generate-state" role="status">
+              <span className="loading-ring" aria-hidden="true" />
+              <span>正在问酒馆哪只种种更适合你今天。</span>
+            </div>
+          )}
+          {helperError && <div className="custom-generate-error">{helperError}</div>}
         </div>
       )}
 
@@ -512,6 +592,7 @@ export default function BartenderPage() {
               if (summoning) return
               setArmedId(null)
               setDetailsOpen(false)
+              setHelperOpen(false)
               setIdx(i)
             }}
             style={{ background: i === idx ? accentFor(b) : undefined }}

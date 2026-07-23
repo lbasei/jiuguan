@@ -10,11 +10,11 @@
 
 ```bash
 npm install
-cp .env.local.example .env       # 把你的 DeepSeek key 填到 VITE_LLM_API_KEY
+cp .env.local.example .env       # 把 GEMINI_API_KEY 填到服务端环境变量（不要加 VITE_）
 npm run dev                       # http://localhost:5173
 ```
 
-不填 key 也能跑——自动降级本地规则解析,demo 不会崩。
+不填 Gemini key 也能跑——自动降级本地规则解析,demo 不会崩。自然语言解析走后端 `/api/llm/*`，key 不会进前端。
 
 ### Mac 桌宠
 

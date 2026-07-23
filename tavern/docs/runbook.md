@@ -8,14 +8,15 @@
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
-| `VITE_LLM_API_KEY` | (空) | DeepSeek API key。**不填就走规则解析,demo 不崩。** |
-| `VITE_LLM_MODEL` | `deepseek-v4-flash` | 模型 ID。改成其他 OpenAI 兼容模型也行(如 `deepseek-chat`)。 |
-| `VITE_LLM_BASE_URL` | `/deepseek` | dev 默认走 Vite 代理绕 CORS。指向其他 OpenAI 兼容 endpoint 时覆盖。 |
+| `GEMINI_API_KEY` | (空) | **服务端专用** Gemini API key。不填就走规则解析,demo 不崩。禁止加 `VITE_` 前缀。 |
+| `GEMINI_MODEL` | `gemini-flash-latest` | Gemini 模型 ID。免费层对新用户可能限制旧模型名。 |
+| `GEMINI_API_BASE` | `https://generativelanguage.googleapis.com` | 可选；自建网关或本地联调可覆盖。 |
+| `HTTPS_PROXY` / `GEMINI_HTTPS_PROXY` | (空) | **关键**：Node 不会自动走系统 VPN。本机 Clash 混合端口常见为 `http://127.0.0.1:7897`。 |
 | `VITE_COLLECT_BASE_URL` | `http://localhost:3000` | Adventure 深链到 data-collection 的根地址；线上填 Production，换域名只改这里。 |
 | `VITE_TAVERN_BASE_URL` | (空) | 酒馆自己的线上根地址，可选，以后回流用。 |
 | `VITE_ADVENTURE_CAMPAIGN` | `adventurex-2026` | 写入 collect query 的 campaign。 |
 
-桌宠无环境变量。
+桌宠无环境变量。自然语言解析请求走 `/api/llm/parse-todos` 与 `/api/llm/suggest-bartender`。
 
 ## 端口
 
@@ -23,7 +24,7 @@
 |---|---|
 | `5173` | 网页 dev server (Vite) |
 | `7878` | 桌宠本地 HTTP 桥(Electron 主进程) |
-| (代理转发到) `api.deepseek.com:443` | Vite dev proxy `/deepseek` → DeepSeek |
+| `8787` | 可选独立 API (`npm run api`) |
 
 ## 常用命令
 
@@ -49,12 +50,11 @@ curl -s http://localhost:5173/ -o /dev/null -w "web: %{http_code}\n"
 # 桌宠桥活着?
 curl -s http://localhost:7878/state -w " | bridge: %{http_code}\n"
 
-# DeepSeek 经代理通?(网页 dev 必须在跑)
-KEY=$(grep '^VITE_LLM_API_KEY=' .env | cut -d= -f2-)
-curl -s http://localhost:5173/deepseek/chat/completions \
-  -H "content-type: application/json" -H "authorization: Bearer $KEY" \
-  -d '{"model":"deepseek-v4-flash","max_tokens":20,"messages":[{"role":"user","content":"通"}]}' \
-  | python3 -c "import sys,json; d=json.load(sys.stdin); print('llm ok:',d['choices'][0]['message']['content']) if 'choices' in d else print('ERR:',d)"
+# Gemini 经后端通?(Vite 或 npm run api 都要能读到 .env 里的 GEMINI_API_KEY)
+curl -s http://localhost:5173/api/llm/status
+curl -s http://localhost:5173/api/llm/parse-todos \
+  -H 'content-type: application/json' \
+  -d '{"text":"我今天要写完 PRD，还要回复老师消息，最好运动半小时"}'
 
 # 模拟网页推 brewing 给桌宠(应在桌宠右下角看到摇杯)
 curl -s -X POST http://localhost:7878/state -H 'content-type: application/json' \
@@ -75,9 +75,9 @@ Access-Control-Allow-Headers: content-type
 
 只用 `curl` 测时不会暴露问题(curl 不走预检),浏览器从 :5173 发 JSON POST 会先发 OPTIONS,缺 `Allow-Methods` 时预检失败,POST 被静默拦截。这事踩过一次。
 
-### DeepSeek 浏览器直连会被 CORS 拦
+### Gemini key 不能放前端
 
-`api.deepseek.com` 没给浏览器开直连 header。`vite.config.js` 配了 dev proxy `/deepseek` → `https://api.deepseek.com`,网页打同源 `/deepseek/chat/completions` 就行。**生产部署需要另配后端代理**——纯前端调 LLM 会把 key 打进浏览器 bundle,只适合 localhost demo。
+`GEMINI_API_KEY` 只能写在服务端环境变量。前端通过 `/api/llm/*` 调用；Vite middleware 与 `server.mjs` / Vercel `/api` 都会走同一套 `api/db.mjs`。
 
 ### `__dirname` 在 ESM 模块下不存在
 
